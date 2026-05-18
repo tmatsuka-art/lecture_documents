@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROC曲線 インタラクティブ・シミュレータ</title>
+<style>
+  :root{
+    --primary:#1a5276; --primary-light:#2980b9; --primary-bg:#eaf2f8;
+    --text-main:#2c3e50; --text-sub:#5d6d7e;
+    --bg-white:#ffffff; --bg-light:#f8f9fa;
+    --healthy:#2980b9; --disease:#e74c3c;
+    --sens:#e74c3c;   /* 感度 = 真陽性（鮮やかな赤）*/
+    --fnr:#a93226;    /* 偽陰性率（暗いくすんだ赤）*/
+    --spec:#2980b9;   /* 特異度 = 真陰性（鮮やかな青）*/
+    --fpr:#1f4e6b;    /* 偽陽性率（暗いくすんだ青）*/
+    --accent-purple:#8e44ad;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:'Yu Gothic','YuGothic','Hiragino Sans','Noto Sans JP',sans-serif;
+    background:#dfe4e8; color:var(--text-main);
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+  }
+  #stage{
+    width:1280px; height:720px;
+    background:var(--bg-white);
+    transform-origin:center center;
+    display:flex; flex-direction:column;
+    padding:12px 24px 16px;
+  }
+  h1{font-size:1.6rem; color:var(--primary); text-align:center; margin-bottom:1px;}
+  .subtitle{text-align:center; color:var(--text-sub); font-size:0.92rem; margin-bottom:6px;}
+
+  .charts{display:flex; gap:20px; justify-content:center; align-items:flex-start;}
+  .chart-box{text-align:center;}
+  canvas{background:var(--bg-white); border:1px solid #e3e8ec; border-radius:6px;}
+  .legend{display:flex; gap:20px; justify-content:center; margin-top:2px;
+    font-size:0.85rem; color:var(--text-sub); font-weight:600;}
+  .legend span::before{
+    content:""; display:inline-block; width:14px; height:14px;
+    border-radius:3px; margin-right:5px; vertical-align:-2px;
+  }
+  .legend .lh::before{background:var(--healthy);}
+  .legend .ld::before{background:var(--disease);}
+
+  /* 塗りつぶし領域の表示トグル */
+  .toggles{display:flex; gap:18px; justify-content:center; margin:7px 0 4px;
+    background:var(--bg-light); padding:7px 14px; border-radius:8px;}
+  .toggles label{display:flex; align-items:center; font-size:0.92rem;
+    font-weight:700; cursor:pointer; color:var(--text-main);}
+  .toggles input{width:16px; height:16px; margin-right:6px; cursor:pointer;}
+  .toggles .sw{display:inline-block; width:15px; height:15px; border-radius:3px;
+    margin-right:5px;}
+
+  .readout{display:flex; gap:12px; justify-content:center; margin:6px 0;}
+  .stat{
+    background:var(--primary-bg); border-radius:8px; padding:4px 12px;
+    text-align:center; min-width:124px;
+  }
+  .stat .label{font-size:0.82rem; color:var(--text-sub);}
+  .stat .value{font-size:1.7rem; font-weight:700; color:var(--primary); line-height:1.12;}
+  .stat.auc    .value{color:var(--accent-purple);}
+  .stat.youden .value{color:var(--accent-purple);}
+  .stat.sens   .value{color:var(--sens);}
+  .stat.fnr    .value{color:var(--fnr);}
+  .stat.spec   .value{color:var(--spec);}
+  .stat.fpr    .value{color:var(--fpr);}
+
+  .controls{
+    display:grid; grid-template-columns:repeat(6,1fr);
+    gap:5px 14px;
+    background:var(--bg-light); padding:9px 16px; border-radius:8px;
+  }
+  .ctrl label{
+    display:flex; justify-content:space-between; font-size:0.82rem;
+    font-weight:700; margin-bottom:2px; white-space:nowrap;
+  }
+  .ctrl .num{color:var(--primary-light); font-variant-numeric:tabular-nums;}
+  .ctrl.healthy label{color:var(--healthy);}
+  .ctrl.disease label{color:var(--disease);}
+  input[type=range]{width:100%; height:10px; accent-color:var(--primary-light); cursor:pointer;}
+  .ctrl.healthy input[type=range]{accent-color:var(--healthy);}
+  .ctrl.disease input[type=range]{accent-color:var(--disease);}
+
+  .btnrow{text-align:center; margin-top:7px;}
+  button{
+    font-family:inherit; font-size:0.92rem; padding:6px 16px;
+    background:var(--primary); color:#fff; border:none; border-radius:6px;
+    cursor:pointer; margin:0 4px;
+  }
+  button:hover{background:var(--primary-light);}
+  button.preset{background:var(--bg-white); color:var(--primary);
+    border:2px solid var(--primary-light);}
+  button.preset:hover{background:var(--primary-bg);}
+</style>
+</head>
+<body>
+<div id="stage">
+  <h1>ROC曲線 インタラクティブ・シミュレータ</h1>
+  <p class="subtitle">スライダーを動かして、検査値の分布と ROC曲線・AUC の関係を確かめよう</p>
+
+  <div class="charts">
+    <div class="chart-box">
+      <canvas id="distCanvas" width="600" height="338"></canvas>
+      <div class="legend">
+        <span class="lh">病気でない人</span>
+        <span class="ld">病気の人</span>
+      </div>
+    </div>
+    <div class="chart-box">
+      <canvas id="rocCanvas" width="338" height="338"></canvas>
+      <div class="legend"><span style="color:var(--text-sub)">● 現在の閾値　／　◇ Youden指数が最大の点（縦線＝J）</span></div>
+    </div>
+  </div>
+
+  <div class="toggles">
+    <label><input type="checkbox" id="tSens" checked><span class="sw" style="background:#e74c3c"></span>感度の領域</label>
+    <label><input type="checkbox" id="tFnr"><span class="sw" style="background:#a93226"></span>偽陰性率の領域</label>
+    <label><input type="checkbox" id="tSpec" checked><span class="sw" style="background:#2980b9"></span>特異度の領域</label>
+    <label><input type="checkbox" id="tFpr"><span class="sw" style="background:#1f4e6b"></span>偽陽性率の領域</label>
+  </div>
+
+  <div class="readout">
+    <div class="stat sens"><div class="label">感度 (真陽性率)</div><div class="value" id="vSens">–</div></div>
+    <div class="stat fnr"><div class="label">偽陰性率</div><div class="value" id="vFnr">–</div></div>
+    <div class="stat spec"><div class="label">特異度</div><div class="value" id="vSpec">–</div></div>
+    <div class="stat fpr"><div class="label">偽陽性率</div><div class="value" id="vFpr">–</div></div>
+    <div class="stat youden"><div class="label">Youden指数 (最大)</div><div class="value" id="vYouden">–</div></div>
+    <div class="stat auc"><div class="label">AUC</div><div class="value" id="vAuc">–</div></div>
+  </div>
+
+  <div class="controls">
+    <div class="ctrl">
+      <label>判定の閾値 <span class="num" id="nThr"></span></label>
+      <input type="range" id="thr" min="10" max="50" step="0.2">
+    </div>
+    <div class="ctrl disease">
+      <label>病気の人 平均 <span class="num" id="nMuD"></span></label>
+      <input type="range" id="muD" min="20" max="48" step="0.2">
+    </div>
+    <div class="ctrl disease">
+      <label>病気の人 SD <span class="num" id="nSdD"></span></label>
+      <input type="range" id="sdD" min="0.8" max="8" step="0.1">
+    </div>
+    <div class="ctrl healthy">
+      <label>病気でない人 平均 <span class="num" id="nMuH"></span></label>
+      <input type="range" id="muH" min="12" max="40" step="0.2">
+    </div>
+    <div class="ctrl healthy">
+      <label>病気でない人 SD <span class="num" id="nSdH"></span></label>
+      <input type="range" id="sdH" min="0.8" max="8" step="0.1">
+    </div>
+    <div class="ctrl">
+      <label>有病率 <span class="num" id="nPrev"></span></label>
+      <input type="range" id="prev" min="1" max="50" step="1">
+    </div>
+  </div>
+
+  <div class="btnrow">
+    <button class="preset" data-preset="overlap">判別しにくい例</button>
+    <button class="preset" data-preset="good">判別しやすい例</button>
+    <button class="preset" data-preset="perfect">完全分離</button>
+    <button id="reset">初期状態に戻す</button>
+  </div>
+</div>
+
+<script>
+// ===== 統計関数 =====
+function erf(x){
+  const s = x<0?-1:1; x=Math.abs(x);
+  const a1=0.254829592,a2=-0.284496736,a3=1.421413741,
+        a4=-1.453152027,a5=1.061405429,p=0.3275911;
+  const t=1/(1+p*x);
+  const y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+  return s*y;
+}
+const normPdf=(x,mu,sd)=>Math.exp(-0.5*((x-mu)/sd)**2)/(sd*Math.sqrt(2*Math.PI));
+const normCdf=(x,mu,sd)=>0.5*(1+erf((x-mu)/(sd*Math.SQRT2)));
+
+// ===== 状態 =====
+const DEFAULTS={thr:27, muH:22.8, muD:30, sdH:2, sdD:2.5};
+const PRESETS={
+  overlap:{thr:27, muH:25, muD:30, sdH:2, sdD:2.5},
+  good:   {thr:27, muH:20.5, muD:30, sdH:2, sdD:2.5},
+  perfect:{thr:27, muH:20, muD:38, sdH:1.5, sdD:1.5}
+};
+const ids=['thr','muH','muD','sdH','sdD'];
+const el={}; ids.forEach(i=>el[i]=document.getElementById(i));
+const elPrev=document.getElementById('prev');
+const tog={sens:document.getElementById('tSens'),fnr:document.getElementById('tFnr'),
+           spec:document.getElementById('tSpec'),fpr:document.getElementById('tFpr')};
+
+const XMIN=10, XMAX=50;
+
+// 塗りつぶし色（スライドの4マス配色と統一）
+const FILL={
+  sens:'rgba(231,76,60,0.38)',  // 感度  = 真陽性（鮮やかな赤）
+  fnr :'rgba(169,50,38,0.80)',  // 偽陰性率（暗いくすんだ赤・凡例なみに濃く）
+  spec:'rgba(41,128,185,0.36)', // 特異度 = 真陰性（鮮やかな青）
+  fpr :'rgba(31,78,107,0.80)'   // 偽陽性率（暗いくすんだ青・凡例なみに濃く）
+};
+
+// ===== 分布グラフ =====
+const dc=document.getElementById('distCanvas'), dx=dc.getContext('2d');
+function drawDist(s){
+  const W=dc.width,H=dc.height, mL=48,mR=16,mT=34,mB=42;
+  const pw=W-mL-mR, ph=H-mT-mB;
+  dx.clearRect(0,0,W,H);
+  const N=300;
+  const xs=[],pH=[],pD=[];
+  let ymax=0;
+  const prev=s.prev, hScale=1-prev;   // 有病率で各分布を集団割合に応じて縮尺
+  for(let i=0;i<=N;i++){
+    const x=XMIN+(XMAX-XMIN)*i/N;
+    const yh=normPdf(x,s.muH,s.sdH)*hScale, yd=normPdf(x,s.muD,s.sdD)*prev;
+    xs.push(x); pH.push(yh); pD.push(yd);
+    ymax=Math.max(ymax,yh,yd);
+  }
+  ymax*=1.15;
+  const sx=x=>mL+pw*(x-XMIN)/(XMAX-XMIN);
+  const sy=y=>mT+ph*(1-y/ymax);
+
+  dx.strokeStyle='#bdc3c7'; dx.lineWidth=1.5;
+  dx.beginPath(); dx.moveTo(mL,mT); dx.lineTo(mL,mT+ph); dx.lineTo(mL+pw,mT+ph); dx.stroke();
+  dx.fillStyle='#5d6d7e'; dx.font='13px sans-serif'; dx.textAlign='center';
+  for(let v=XMIN;v<=XMAX;v+=10){
+    dx.fillText(v,sx(v),mT+ph+20);
+    dx.strokeStyle='#eef2f4';
+    dx.beginPath(); dx.moveTo(sx(v),mT); dx.lineTo(sx(v),mT+ph); dx.stroke();
+  }
+  dx.font='15px sans-serif';
+  dx.fillText('検査値',mL+pw/2,H-8);
+
+  const thr=s.thr;
+  // arr: 分布, side: 'above'=閾値以上 / 'below'=閾値未満
+  function fillArea(arr,side,color){
+    const above=(side==='above');
+    dx.beginPath(); let started=false, lastX=null;
+    for(let i=0;i<=N;i++){
+      const inside=above ? xs[i]>=thr : xs[i]<=thr;
+      if(inside){
+        if(!started){dx.moveTo(sx(xs[i]),sy(0)); started=true;}
+        dx.lineTo(sx(xs[i]),sy(arr[i]));
+        lastX=xs[i];
+      }
+    }
+    if(started){
+      dx.lineTo(sx(lastX),sy(0));
+      dx.closePath(); dx.fillStyle=color; dx.fill();
+    }
+  }
+  // 4領域（チェックされたものだけ描画）
+  // 病気の人(pD): 閾値以上=感度 / 閾値未満=偽陰性率
+  // 病気でない人(pH): 閾値未満=特異度 / 閾値以上=偽陽性率
+  if(tog.fnr.checked)  fillArea(pD,'below',FILL.fnr);
+  if(tog.fpr.checked)  fillArea(pH,'above',FILL.fpr);
+  if(tog.spec.checked) fillArea(pH,'below',FILL.spec);
+  if(tog.sens.checked) fillArea(pD,'above',FILL.sens);
+
+  function curve(arr,color){
+    dx.strokeStyle=color; dx.lineWidth=3.2; dx.beginPath();
+    for(let i=0;i<=N;i++){ i?dx.lineTo(sx(xs[i]),sy(arr[i])):dx.moveTo(sx(xs[i]),sy(arr[i])); }
+    dx.stroke();
+  }
+  curve(pH,'#2980b9'); curve(pD,'#e74c3c');
+
+  dx.strokeStyle='#2c3e50'; dx.lineWidth=2.5; dx.setLineDash([8,5]);
+  dx.beginPath(); dx.moveTo(sx(thr),mT); dx.lineTo(sx(thr),mT+ph); dx.stroke();
+  dx.setLineDash([]);
+  dx.fillStyle='#2c3e50'; dx.textAlign='center'; dx.font='bold 16px sans-serif';
+  dx.fillText('閾値 '+thr.toFixed(1),sx(thr),mT-10);
+  dx.font='13px sans-serif'; dx.fillStyle='#7f8c8d';
+  dx.textAlign='left';  dx.fillText('← 陰性と判定',mL+6,mT+16);
+  dx.textAlign='right'; dx.fillText('陽性と判定 →',mL+pw-6,mT+16);
+}
+
+// ===== ROCグラフ =====
+const rc=document.getElementById('rocCanvas'), rx=rc.getContext('2d');
+function drawROC(s){
+  const W=rc.width,H=rc.height, mL=54,mR=18,mT=18,mB=48;
+  const pw=W-mL-mR, ph=H-mT-mB, x0=mL, y0=mT;
+  rx.clearRect(0,0,W,H);
+  const SX=v=>x0+pw*v, SY=v=>y0+ph*(1-v);
+
+  rx.strokeStyle='#eef2f4'; rx.lineWidth=1.5;
+  for(let g=0;g<=1.0001;g+=0.25){
+    rx.beginPath(); rx.moveTo(SX(g),SY(0)); rx.lineTo(SX(g),SY(1)); rx.stroke();
+    rx.beginPath(); rx.moveTo(SX(0),SY(g)); rx.lineTo(SX(1),SY(g)); rx.stroke();
+  }
+  rx.strokeStyle='#bdc3c7'; rx.lineWidth=1.5;
+  rx.beginPath(); rx.moveTo(SX(0),SY(0)); rx.lineTo(SX(0),SY(1)); rx.stroke();
+  rx.beginPath(); rx.moveTo(SX(0),SY(0)); rx.lineTo(SX(1),SY(0)); rx.stroke();
+  rx.strokeStyle='#bdc3c7'; rx.setLineDash([5,5]);
+  rx.beginPath(); rx.moveTo(SX(0),SY(0)); rx.lineTo(SX(1),SY(1)); rx.stroke();
+  rx.setLineDash([]);
+  rx.fillStyle='#5d6d7e'; rx.font='12px sans-serif'; rx.textAlign='center';
+  for(let g=0;g<=1.0001;g+=0.5){
+    rx.fillText(g.toFixed(1),SX(g),SY(0)+20);
+    rx.textAlign='right'; rx.fillText(g.toFixed(1),SX(0)-8,SY(g)+4); rx.textAlign='center';
+  }
+  rx.font='14px sans-serif';
+  rx.fillText('偽陽性率 (1 − 特異度)',SX(0.5),H-12);
+  rx.save(); rx.translate(16,SY(0.5)); rx.rotate(-Math.PI/2);
+  rx.fillText('感度 (真陽性率)',0,0); rx.restore();
+
+  rx.strokeStyle='#8e44ad'; rx.lineWidth=4; rx.beginPath();
+  const N=400;
+  for(let i=0;i<=N;i++){
+    const t=XMIN-10+(XMAX-XMIN+20)*i/N;
+    const fpr=1-normCdf(t,s.muH,s.sdH);
+    const tpr=1-normCdf(t,s.muD,s.sdD);
+    i?rx.lineTo(SX(fpr),SY(tpr)):rx.moveTo(SX(fpr),SY(tpr));
+  }
+  rx.stroke();
+
+  // Youden指数：対角線からROC曲線までの縦線（長さ＝J）と最大点
+  const yo=s.youden;
+  rx.strokeStyle='#8e44ad'; rx.lineWidth=3;
+  rx.beginPath(); rx.moveTo(SX(yo.fpr),SY(yo.fpr)); rx.lineTo(SX(yo.fpr),SY(yo.tpr)); rx.stroke();
+  rx.fillStyle='#8e44ad'; rx.font='bold 14px sans-serif'; rx.textAlign='left';
+  rx.fillText('J', SX(yo.fpr)+8, SY((yo.fpr+yo.tpr)/2)+5);
+  rx.fillStyle='#fff'; rx.strokeStyle='#8e44ad'; rx.lineWidth=3;
+  rx.beginPath();
+  rx.moveTo(SX(yo.fpr),SY(yo.tpr)-7); rx.lineTo(SX(yo.fpr)+7,SY(yo.tpr));
+  rx.lineTo(SX(yo.fpr),SY(yo.tpr)+7); rx.lineTo(SX(yo.fpr)-7,SY(yo.tpr));
+  rx.closePath(); rx.fill(); rx.stroke();
+
+  // 現在の閾値での動作点
+  const fpr=1-normCdf(s.thr,s.muH,s.sdH);
+  const tpr=1-normCdf(s.thr,s.muD,s.sdD);
+  rx.fillStyle='#2c3e50';
+  rx.beginPath(); rx.arc(SX(fpr),SY(tpr),9,0,2*Math.PI); rx.fill();
+  rx.strokeStyle='#fff'; rx.lineWidth=2.5; rx.stroke();
+}
+
+// Youden指数 J = 感度+特異度−1 を最大化する点（有病率に依存しない）
+function youdenOptimal(muH,sdH,muD,sdD){
+  let bt=(muH+muD)/2, bj=-1;
+  for(let t=XMIN;t<=XMAX;t+=0.05){
+    const j=normCdf(t,muH,sdH)-normCdf(t,muD,sdD);
+    if(j>bj){bj=j; bt=t;}
+  }
+  return {t:bt, j:bj,
+          fpr:1-normCdf(bt,muH,sdH), tpr:1-normCdf(bt,muD,sdD)};
+}
+
+// ===== 画面更新 =====
+function update(){
+  const s={};
+  ids.forEach(i=>s[i]=parseFloat(el[i].value));
+  s.prev=parseFloat(elPrev.value)/100;
+  document.getElementById('nPrev').textContent='= '+elPrev.value+'%';
+  document.getElementById('nThr').textContent='= '+s.thr.toFixed(1);
+  document.getElementById('nMuH').textContent='= '+s.muH.toFixed(1);
+  document.getElementById('nMuD').textContent='= '+s.muD.toFixed(1);
+  document.getElementById('nSdH').textContent='= '+s.sdH.toFixed(1);
+  document.getElementById('nSdD').textContent='= '+s.sdD.toFixed(1);
+
+  const tpr=1-normCdf(s.thr,s.muD,s.sdD);   // 感度
+  const fnr=normCdf(s.thr,s.muD,s.sdD);     // 偽陰性率 = 1 − 感度
+  const fpr=1-normCdf(s.thr,s.muH,s.sdH);   // 偽陽性率
+  const spec=1-fpr;                         // 特異度
+  const z=(s.muD-s.muH)/Math.sqrt(s.sdD**2+s.sdH**2);
+  const auc=0.5*(1+erf(z/Math.SQRT2));
+  document.getElementById('vSens').textContent=(tpr*100).toFixed(1)+'%';
+  document.getElementById('vFnr').textContent=(fnr*100).toFixed(1)+'%';
+  document.getElementById('vSpec').textContent=(spec*100).toFixed(1)+'%';
+  document.getElementById('vFpr').textContent=(fpr*100).toFixed(1)+'%';
+  document.getElementById('vAuc').textContent=auc.toFixed(3);
+
+  const yo=youdenOptimal(s.muH,s.sdH,s.muD,s.sdD);
+  s.youden=yo;
+  document.getElementById('vYouden').textContent=yo.j.toFixed(3);
+
+  drawDist(s); drawROC(s);
+}
+
+// 表示中の2曲線（有病率で縮尺）が交わる点＝「2つの山の谷」＝ベイズ最適カットオフ
+function bestThreshold(muH,sdH,muD,sdD,prev){
+  let bestT=(muH+muD)/2, bestD=Infinity;
+  const lo=Math.min(muH,muD), hi=Math.max(muH,muD);
+  for(let t=lo;t<=hi;t+=0.02){
+    const yh=(1-prev)*normPdf(t,muH,sdH);
+    const yd=prev*normPdf(t,muD,sdD);
+    const d=Math.abs(yh-yd);
+    if(d<bestD){bestD=d; bestT=t;}
+  }
+  return Math.round(bestT/0.2)*0.2;
+}
+function setValues(v){
+  ids.forEach(i=>el[i].value=v[i]);
+  el.thr.value=bestThreshold(v.muH,v.sdH,v.muD,v.sdD,parseFloat(elPrev.value)/100);
+  update();
+}
+
+ids.forEach(i=>el[i].addEventListener('input',update));
+elPrev.addEventListener('input',update);
+Object.values(tog).forEach(t=>t.addEventListener('change',update));
+document.getElementById('reset').addEventListener('click',()=>{elPrev.value=20; setValues(DEFAULTS);});
+document.querySelectorAll('button.preset').forEach(b=>{
+  b.addEventListener('click',()=>{
+    const p=PRESETS[b.dataset.preset];
+    setValues(Object.assign({},DEFAULTS,p));
+  });
+});
+
+// ===== 16:9 ステージをビューポートにフィット =====
+const stage=document.getElementById('stage');
+function rescale(){
+  const sc=Math.min(window.innerWidth/1280, window.innerHeight/720);
+  stage.style.transform='scale('+sc+')';
+}
+window.addEventListener('resize',rescale);
+rescale();
+
+elPrev.value=20;
+setValues(DEFAULTS);
+</script>
+</body>
+</html>
