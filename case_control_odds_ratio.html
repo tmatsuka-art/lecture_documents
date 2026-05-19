@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>症例対照研究では、なぜオッズ比しか出せないのか？</title>
+<style>
+  :root{
+    --primary:#1a5276; --primary-light:#2980b9; --primary-bg:#eaf2f8;
+    --text-main:#2c3e50; --text-sub:#5d6d7e; --text-white:#fff;
+    --bg-white:#fff; --bg-light:#f8f9fa;
+    --accent-red:#e74c3c; --accent-orange:#f39c12; --accent-green:#27ae60;
+    --accent-purple:#8e44ad; --diagram-border:#bdc3c7;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{font-size:16px;}
+  body{
+    font-family:'Yu Gothic','YuGothic','Hiragino Sans','Noto Sans JP',sans-serif;
+    background:#0e1620; color:var(--text-main);
+    height:100vh; display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+  }
+  .stage{
+    width:1280px; height:720px; background:var(--bg-white);
+    transform-origin:center center; position:relative;
+    display:flex; flex-direction:column;
+  }
+  /* ===== ヘッダー ===== */
+  header{
+    background:linear-gradient(135deg,var(--primary),var(--primary-light));
+    color:#fff; padding:.55rem 1.4rem; display:flex;
+    align-items:center; justify-content:space-between; flex:0 0 auto;
+  }
+  header h1{font-size:1.5rem; font-weight:800;}
+  header p{font-size:.9rem; opacity:.9; margin-top:.1rem;}
+  #rareBtn{
+    font-family:inherit; font-size:.86rem; font-weight:700; cursor:pointer;
+    background:rgba(255,255,255,.15); color:#fff;
+    border:1.5px solid rgba(255,255,255,.6); border-radius:20px;
+    padding:.45rem .9rem; transition:.15s;
+  }
+  #rareBtn:hover{background:rgba(255,255,255,.3);}
+  #rareBtn.on{background:#fff; color:var(--primary); border-color:#fff;}
+  /* ===== 本体 ===== */
+  main{flex:1 1 auto; display:flex; gap:1rem; padding:.8rem 1.4rem;}
+  .left{flex:0 0 552px; display:flex; flex-direction:column;}
+  .right{flex:1 1 auto; display:flex; flex-direction:column; gap:.5rem;}
+  /* --- 町 --- */
+  .townhead{font-size:1rem; font-weight:800; color:var(--primary); margin-bottom:.3rem;}
+  .townhead span{font-weight:600; color:var(--text-sub); font-size:.82rem;}
+  .townwrap{display:flex; gap:.3rem; align-items:stretch;}
+  .sidelabels{display:flex; flex-direction:column; width:26px;}
+  .sidelabels div{
+    writing-mode:vertical-rl; text-align:center; font-size:.78rem;
+    font-weight:800; color:#fff; border-radius:4px; padding:.2rem 0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .lbl-exp{background:var(--accent-orange); flex:4; margin-bottom:2px;}
+  .lbl-unexp{background:var(--primary-light); flex:6;}
+  canvas{border:1px solid var(--diagram-border); border-radius:4px; background:#fafcfe;}
+  .legend{display:grid; grid-template-columns:1fr 1fr; gap:.2rem .8rem; margin-top:.5rem;}
+  .legend div{font-size:.8rem; display:flex; align-items:center; gap:.35rem;}
+  .sw{width:14px; height:14px; border-radius:3px; flex:0 0 auto;}
+  .townnote{
+    margin-top:.45rem; font-size:.78rem; color:var(--text-sub);
+    background:var(--bg-light); border-left:3px solid var(--primary-light);
+    padding:.35rem .6rem; border-radius:0 4px 4px 0; line-height:1.4;
+  }
+  /* --- 計算式パネル --- */
+  .formula{
+    margin-top:.45rem; background:#fcfdfe; border:1.5px solid var(--diagram-border);
+    border-radius:6px; padding:.4rem .65rem;
+  }
+  .formula .ftitle{
+    font-weight:800; font-size:.78rem; color:var(--text-sub); margin-bottom:.2rem;
+  }
+  .formula .frow{
+    font-family:'Consolas','Courier New',monospace; font-size:.82rem;
+    margin:.22rem 0; color:var(--text-main); white-space:nowrap;
+  }
+  .formula .frow.tight{font-size:.70rem;}
+  .formula .fcorrect{
+    font-size:.79rem; font-weight:700; color:var(--accent-green);
+    background:#eafaf1; border-radius:4px; padding:.22rem .45rem;
+    margin:.1rem 0 .3rem; line-height:1.45;
+  }
+  .formula .frow .lead{font-weight:800; color:var(--primary);}
+  .formula .res{font-weight:900; font-size:1.1rem; padding:0 .12rem;}
+  .formula .res.good{color:var(--accent-green);}
+  .formula .res.bad{color:var(--accent-red);}
+  .formula .res.lock{color:var(--primary);}
+  /* --- モード切替 --- */
+  .modebar{display:flex; gap:.5rem;}
+  .modebtn{
+    flex:1; font-family:inherit; cursor:pointer; border-radius:8px;
+    padding:.5rem; font-size:1rem; font-weight:800; transition:.15s;
+    border:2px solid var(--diagram-border); background:#fff; color:var(--text-sub);
+  }
+  .modebtn-sub{display:block; font-size:.72rem; font-weight:600; margin-top:.1rem;}
+  .modebtn.active{
+    border-color:var(--primary); background:var(--primary-bg); color:var(--primary);
+    box-shadow:0 2px 8px rgba(26,82,118,.2);
+  }
+  /* --- ヒント --- */
+  .hint{
+    font-size:.86rem; line-height:1.45; background:#fff7e6;
+    border:1.5px solid var(--accent-orange); border-radius:6px;
+    padding:.4rem .7rem; color:#7a5200;
+  }
+  /* --- コントロール --- */
+  .controls{background:var(--bg-light); border-radius:8px; padding:.55rem .8rem;}
+  .ctlrow{display:flex; align-items:center; gap:.6rem; margin:.32rem 0;}
+  .ctlrow label{font-size:.86rem; font-weight:700; flex:0 0 160px;}
+  .ctlrow input[type=range]{flex:1; accent-color:var(--primary-light); cursor:pointer;}
+  .ctlval{font-size:.9rem; font-weight:800; color:var(--primary); flex:0 0 52px; text-align:right;}
+  .ratio{font-size:.82rem; color:var(--text-sub); margin-top:.15rem; text-align:right;}
+  .chk{display:flex; align-items:center; gap:.4rem; font-size:.84rem; font-weight:700; margin-top:.35rem;}
+  .chk input{width:16px; height:16px; accent-color:var(--accent-green); cursor:pointer;}
+  /* --- 表 --- */
+  .marginNote{font-size:.8rem; font-weight:700; color:var(--accent-red); margin-bottom:.2rem;}
+  table.t2{width:100%; border-collapse:collapse; font-size:.92rem;}
+  table.t2 th,table.t2 td{
+    border:1px solid var(--diagram-border); padding:.32rem; text-align:center;
+  }
+  table.t2 th{background:var(--primary); color:#fff; font-weight:700;}
+  table.t2 td{font-weight:700; background:#fff;}
+  table.t2 td.cell{font-size:1.05rem;}
+  table.t2 .mg{background:var(--bg-light); color:var(--text-sub);}
+  table.t2 .fixed{background:#fdecea !important; color:var(--accent-red) !important;}
+  /* --- 結果 --- */
+  .results{display:flex; gap:.6rem;}
+  .rbox{
+    flex:1; border-radius:10px; padding:.5rem .7rem; border:2.5px solid;
+    display:flex; flex-direction:column; transition:.2s;
+  }
+  .rbox .rlabel{font-size:.86rem; font-weight:800;}
+  .rbox .rval{font-size:2.7rem; font-weight:900; line-height:1.05; letter-spacing:-1px;}
+  .rbox .rtrue{font-size:.78rem; color:var(--text-sub); font-weight:700;}
+  .rbox .rtag{font-size:.76rem; font-weight:800; margin-top:.05rem;}
+  .rbox.good{border-color:var(--accent-green); background:#eafaf1;}
+  .rbox.good .rval,.rbox.good .rlabel{color:var(--accent-green);}
+  .rbox.bad{border-color:var(--accent-red); background:#fdecea;}
+  .rbox.bad .rval,.rbox.bad .rlabel{color:var(--accent-red);}
+  .rbox.lock{border-color:var(--primary); background:var(--primary-bg);}
+  .rbox.lock .rval,.rbox.lock .rlabel{color:var(--primary);}
+  .rangenote{font-size:.78rem; color:var(--accent-red); font-weight:700; margin-top:.1rem;}
+  /* --- フッター --- */
+  footer{
+    flex:0 0 auto; background:var(--primary); color:#fff;
+    padding:.5rem 1.4rem; font-size:.92rem; font-weight:700; line-height:1.45;
+  }
+  footer b{color:#ffe082;}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+
+  <header>
+    <div>
+      <h1>症例対照研究では、なぜ「オッズ比」しか出せないのか？</h1>
+      <p>同じ町を2つの研究デザインで調べて、リスク比とオッズ比の振る舞いを比べてみよう</p>
+    </div>
+    <button id="rareBtn">まれな疾病に切替</button>
+  </header>
+
+  <main>
+    <!-- ===== 左：町 ===== -->
+    <div class="left">
+      <div class="townhead">🏘️ サンプル町 <span id="townPop">（人口 10,000人 ＝ 点1つが1人）</span></div>
+      <div class="townwrap">
+        <div class="sidelabels">
+          <div class="lbl-exp">⚠️ 曝露群</div>
+          <div class="lbl-unexp">✅ 非曝露群</div>
+        </div>
+        <canvas id="town" width="1000" height="640" style="width:500px;height:320px;"></canvas>
+      </div>
+      <div class="legend">
+        <div><span class="sw" style="background:#e74c3c"></span>⚠️🤒 曝露あり・疾病あり</div>
+        <div><span class="sw" style="background:#f5b041"></span>⚠️🙂 曝露あり・疾病なし</div>
+        <div><span class="sw" style="background:#8e44ad"></span>✅🤒 非曝露・疾病あり</div>
+        <div><span class="sw" style="background:#85c1e9"></span>✅🙂 非曝露・疾病なし</div>
+      </div>
+      <div class="townnote" id="townNote">
+        色が濃い点が「研究に選ばれた人」。薄い点は研究の視界の外。
+      </div>
+      <div class="formula">
+        <div class="ftitle" id="fTitle">🧮 いま計算している式（スライダーと連動）</div>
+        <div class="fcorrect" id="fCorrect" style="display:none;"></div>
+        <div class="frow" id="fRR"></div>
+        <div class="frow" id="fOR"></div>
+      </div>
+    </div>
+
+    <!-- ===== 右：操作と結果 ===== -->
+    <div class="right">
+      <div class="modebar">
+        <button class="modebtn active" id="btnCohort">
+          ➡️ コホート研究<span class="modebtn-sub">曝露で分けて追跡（行を選ぶ）</span>
+        </button>
+        <button class="modebtn" id="btnCC">
+          🔎 症例対照研究<span class="modebtn-sub">病気で分けて集める（列を選ぶ）</span>
+        </button>
+      </div>
+
+      <div class="hint" id="hint"></div>
+
+      <!-- コホート用スライダー -->
+      <div class="controls" id="cohortControls">
+        <div class="ctlrow">
+          <label>曝露群の追跡率</label>
+          <input type="range" id="fE" min="10" max="100" step="5" value="100">
+          <span class="ctlval" id="fEval">100%</span>
+        </div>
+        <div class="ctlrow">
+          <label>非曝露群の追跡率</label>
+          <input type="range" id="fU" min="10" max="100" step="5" value="100">
+          <span class="ctlval" id="fUval">100%</span>
+        </div>
+      </div>
+
+      <!-- 症例対照用スライダー -->
+      <div class="controls" id="ccControls" style="display:none;">
+        <div class="ctlrow">
+          <label>症例（病気の人）の登録率</label>
+          <input type="range" id="fD" min="20" max="100" step="5" value="100">
+          <span class="ctlval" id="fDval">100%</span>
+        </div>
+        <div class="ctlrow">
+          <label>対照（健康な人）の登録率</label>
+          <input type="range" id="fH" min="5" max="100" step="5" value="20">
+          <span class="ctlval" id="fHval">20%</span>
+        </div>
+        <div class="ratio" id="ratioNote"></div>
+        <label class="chk">
+          <input type="checkbox" id="prevCorrect">
+          有病率（外部情報）がわかっている → 列を補正してリスク比を復元する
+        </label>
+      </div>
+
+      <div>
+        <div class="marginNote" id="marginNote"></div>
+        <table class="t2">
+          <tr><th></th><th>疾病あり</th><th>疾病なし</th><th class="mg">合計</th></tr>
+          <tr><th>曝露あり</th>
+            <td class="cell" id="cellA">—</td><td class="cell" id="cellB">—</td>
+            <td class="mg" id="sumE">—</td></tr>
+          <tr><th>曝露なし</th>
+            <td class="cell" id="cellC">—</td><td class="cell" id="cellD">—</td>
+            <td class="mg" id="sumU">—</td></tr>
+          <tr><th class="mg">合計</th>
+            <td class="mg" id="sumD">—</td><td class="mg" id="sumH">—</td>
+            <td class="mg" id="sumTot">—</td></tr>
+        </table>
+      </div>
+
+      <div class="results">
+        <div class="rbox" id="rrBox">
+          <div class="rlabel">📈 リスク比 (RR)</div>
+          <div class="rval" id="rrVal">—</div>
+          <div class="rtag" id="rrTag"></div>
+          <div class="rtrue" id="rrTrue"></div>
+          <div class="rangenote" id="rrRange"></div>
+        </div>
+        <div class="rbox lock" id="orBox">
+          <div class="rlabel">🎲 オッズ比 (OR)</div>
+          <div class="rval" id="orVal">—</div>
+          <div class="rtag" id="orTag">🔒 サンプリングに対して不変</div>
+          <div class="rtrue" id="orTrue"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer id="takeaway"></footer>
+</div>
+
+<script>
+//=================== データ ===================
+const DATASETS = {
+  common: {label:'通常の疾病', eD:80, eH:320, uD:30, uH:570},
+  rare:   {label:'まれな疾病', eD:8,  eH:392, uD:3,  uH:597}
+};
+const COLORS = [[231,76,60],[245,176,65],[142,68,173],[133,193,233]]; // cat0..3
+
+const state = {
+  mode:'cohort',          // 'cohort' | 'cc'
+  dataset:'common',
+  fE:1, fU:1,             // コホート: 曝露/非曝露 追跡率
+  fD:1, fH:0.2,           // 症例対照: 症例/対照 登録率
+  prevCorrect:false,
+  rrMin:Infinity, rrMax:-Infinity
+};
+
+//=================== 計算 ===================
+function pop(){ return DATASETS[state.dataset]; }
+function trueRR(p){ return (p.eD/(p.eD+p.eH))/(p.uD/(p.uD+p.uH)); }
+function trueOR(p){ return (p.eD*p.uH)/(p.eH*p.uD); }
+
+function observed(){
+  const p = pop();
+  let a,b,c,d;
+  if(state.mode==='cohort'){
+    a=p.eD*state.fE; b=p.eH*state.fE; c=p.uD*state.fU; d=p.uH*state.fU;
+  }else{
+    a=p.eD*state.fD; b=p.eH*state.fH; c=p.uD*state.fD; d=p.uH*state.fH;
+  }
+  let A=a,B=b,C=c,D=d;
+  // 有病率による列補正（症例対照のみ）
+  if(state.mode==='cc' && state.prevCorrect){
+    const trueCases=p.eD+p.uD, trueCtrl=p.eH+p.uH;
+    const sC=trueCases/(a+c), sH=trueCtrl/(b+d);
+    A=a*sC; C=c*sC; B=b*sH; D=d*sH;
+  }
+  const rr=(A/(A+B))/(C/(C+D));
+  const or=(A*D)/(B*C);
+  return {a,b,c,d,rr,or};
+}
+
+//=================== 町キャンバス ===================
+const canvas=document.getElementById('town');
+const ctx=canvas.getContext('2d');
+const COLS=40, ROWS=25, N=COLS*ROWS, CW=25, CH=25.6, DOT=18;
+let dotCat=new Int8Array(N);     // 各点の分類 0..3
+let dotIdx=new Int32Array(N);    // 分類内インデックス
+let alphaCur=new Float32Array(N);
+let alphaTgt=new Float32Array(N);
+let dotSpeed=new Float32Array(N);
+
+function buildDots(){
+  const p=pop();
+  const counts=[p.eD,p.eH,p.uD,p.uH];
+  let i=0;
+  for(let cat=0;cat<4;cat++){
+    for(let k=0;k<counts[cat];k++){ dotCat[i]=cat; dotIdx[i]=k; i++; }
+  }
+  for(let j=0;j<N;j++){
+    alphaCur[j]=1; alphaTgt[j]=1;
+    dotSpeed[j]=0.10+Math.random()*0.16;
+  }
+}
+
+function updateTargets(){
+  const p=pop();
+  const counts=[p.eD,p.eH,p.uD,p.uH];
+  // 各分類の選択率
+  let frac;
+  if(state.mode==='cohort') frac=[state.fE,state.fE,state.fU,state.fU];
+  else                      frac=[state.fD,state.fH,state.fD,state.fH];
+  const thr=counts.map((c,ci)=>Math.round(c*frac[ci]));
+  for(let j=0;j<N;j++){
+    const sel = dotIdx[j] < thr[dotCat[j]];
+    alphaTgt[j]= sel?1:0.12;
+  }
+}
+
+function drawTown(){
+  ctx.clearRect(0,0,1000,640);
+  for(let j=0;j<N;j++){
+    const row=(j/COLS)|0, col=j%COLS;
+    const c=COLORS[dotCat[j]], a=alphaCur[j];
+    ctx.fillStyle='rgba('+c[0]+','+c[1]+','+c[2]+','+a+')';
+    ctx.fillRect(col*CW+(CW-DOT)/2, row*CH+(CH-DOT)/2, DOT, DOT);
+  }
+  // 曝露/非曝露の境界線（4000人＝32行目）
+  ctx.strokeStyle='#34495e'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(0,256); ctx.lineTo(1000,256); ctx.stroke();
+}
+
+//=================== アニメーション ===================
+const disp={}; // 数値トゥイーン
+['cellA','cellB','cellC','cellD','sumE','sumU','sumD','sumH','sumTot','rr','or']
+  .forEach(k=>disp[k]={cur:0,tgt:0});
+let raf=null;
+
+function setTargets(){
+  const o=observed();
+  disp.cellA.tgt=o.a; disp.cellB.tgt=o.b; disp.cellC.tgt=o.c; disp.cellD.tgt=o.d;
+  disp.sumE.tgt=o.a+o.b; disp.sumU.tgt=o.c+o.d;
+  disp.sumD.tgt=o.a+o.c; disp.sumH.tgt=o.b+o.d;
+  disp.sumTot.tgt=o.a+o.b+o.c+o.d;
+  disp.rr.tgt=o.rr; disp.or.tgt=o.or;
+  updateTargets();
+  if(!raf) raf=requestAnimationFrame(tick);
+}
+
+function tick(){
+  let moving=false;
+  for(let j=0;j<N;j++){
+    const d=alphaTgt[j]-alphaCur[j];
+    if(Math.abs(d)>0.003){ alphaCur[j]+=d*dotSpeed[j]; moving=true; }
+    else alphaCur[j]=alphaTgt[j];
+  }
+  for(const k in disp){
+    const s=disp[k], d=s.tgt-s.cur;
+    if(Math.abs(d)>0.001){ s.cur+=d*0.22; moving=true; }
+    else s.cur=s.tgt;
+  }
+  drawTown();
+  paintNumbers();
+  if(moving) raf=requestAnimationFrame(tick);
+  else raf=null;
+}
+
+function fmt(n){ return Math.round(n).toLocaleString('ja-JP'); }
+function paintNumbers(){
+  cellA.textContent=fmt(disp.cellA.cur); cellB.textContent=fmt(disp.cellB.cur);
+  cellC.textContent=fmt(disp.cellC.cur); cellD.textContent=fmt(disp.cellD.cur);
+  sumE.textContent=fmt(disp.sumE.cur); sumU.textContent=fmt(disp.sumU.cur);
+  sumD.textContent=fmt(disp.sumD.cur); sumH.textContent=fmt(disp.sumH.cur);
+  sumTot.textContent=fmt(disp.sumTot.cur);
+  rrVal.textContent=disp.rr.cur.toFixed(2);
+  orVal.textContent=disp.or.cur.toFixed(2);
+  updateFormula();
+}
+
+let rrResClass='good';
+function updateFormula(){
+  let a=disp.cellA.cur,b=disp.cellB.cur,c=disp.cellC.cur,d=disp.cellD.cur;
+  let A=a,B=b,C=c,D=d;
+  if(state.mode==='cc' && state.prevCorrect){
+    const p=pop(), tCases=p.eD+p.uD, tCtrl=p.eH+p.uH;
+    const sC=tCases/(a+c), sH=tCtrl/(b+d);
+    A=a*sC; C=c*sC; B=b*sH; D=d*sH;
+  }
+  const fc=$('fCorrect');
+  if(state.mode==='cc' && state.prevCorrect){
+    fc.style.display='block';
+    const pD=Math.round(state.fD*100), pH=Math.round(state.fH*100);
+    fc.innerHTML=
+      '🔧 <b>補正のしくみ</b>：いま集めたのは 症例の'+pD+'%・対照の'+pH+'% だけ。'
+      +'有病率から「町の本当の人数」がわかるので、集めた人数を割り戻して真の集団を復元します。<br>'
+      +'　症例列を ×'+(1/state.fD).toFixed(2)+'（＝ 1 ÷ '+pD+'%）'
+      +'　／　対照列を ×'+(1/state.fH).toFixed(2)+'（＝ 1 ÷ '+pH+'%）';
+  }else{
+    fc.style.display='none';
+  }
+  const corrected = (state.mode==='cc' && state.prevCorrect);
+  const fRR=$('fRR'), fOR=$('fOR');
+  if(corrected){
+    const sC=1/state.fD, sH=1/state.fH;
+    const pa=fmt(a)+'×'+sC.toFixed(2), pb=fmt(b)+'×'+sH.toFixed(2),
+          pc=fmt(c)+'×'+sC.toFixed(2), pd=fmt(d)+'×'+sH.toFixed(2);
+    fRR.classList.add('tight'); fOR.classList.add('tight');
+    fRR.innerHTML='<span class="lead">RR</span> = ('+pa+')/('+pa+'+'+pb+')'
+      +' ÷ ('+pc+')/('+pc+'+'+pd+') = <span class="res good">'
+      +disp.rr.cur.toFixed(2)+'</span>';
+    fOR.innerHTML='<span class="lead">OR</span> = ('+pa+'/'+pb+') ÷ ('+pc+'/'+pd+')'
+      +' = <span class="res lock">'+disp.or.cur.toFixed(2)+'</span>';
+  }else{
+    fRR.classList.remove('tight'); fOR.classList.remove('tight');
+    const re=A/(A+B), ru=C/(C+D);
+    fRR.innerHTML='<span class="lead">RR</span> = ('+fmt(A)+'/'+fmt(A+B)
+      +') ÷ ('+fmt(C)+'/'+fmt(C+D)+') = '+re.toFixed(3)+' ÷ '+ru.toFixed(3)
+      +' = <span class="res '+rrResClass+'">'+disp.rr.cur.toFixed(2)+'</span>';
+    const oe=A/B, ou=C/D;
+    fOR.innerHTML='<span class="lead">OR</span> = ('+fmt(A)+'/'+fmt(B)
+      +') ÷ ('+fmt(C)+'/'+fmt(D)+') = '+oe.toFixed(3)+' ÷ '+ou.toFixed(3)
+      +' = <span class="res lock">'+disp.or.cur.toFixed(2)+'</span>';
+  }
+}
+const $=id=>document.getElementById(id);
+const cellA=$('cellA'),cellB=$('cellB'),cellC=$('cellC'),cellD=$('cellD');
+const sumE=$('sumE'),sumU=$('sumU'),sumD=$('sumD'),sumH=$('sumH'),sumTot=$('sumTot');
+const rrVal=$('rrVal'),orVal=$('orVal');
+
+//=================== UI 更新 ===================
+function refresh(){
+  const p=pop(), o=observed();
+  const tRR=trueRR(p), tOR=trueOR(p);
+
+  // 表の「研究者が固定した周辺度数」を強調
+  document.querySelectorAll('.t2 .fixed').forEach(e=>e.classList.remove('fixed'));
+  if(state.mode==='cohort'){
+    sumE.classList.add('fixed'); sumU.classList.add('fixed');
+    $('marginNote').textContent='📌 研究者が決めるのは「行の合計」（曝露群・非曝露群の人数）';
+  }else{
+    sumD.classList.add('fixed'); sumH.classList.add('fixed');
+    $('marginNote').textContent='📌 研究者が決めるのは「列の合計」（症例・対照の人数）';
+  }
+
+  // RRボックス
+  const rrBox=$('rrBox');
+  rrBox.classList.remove('good','bad');
+  $('rrTrue').textContent='真の集団のリスク比 ＝ '+tRR.toFixed(2);
+  if(state.mode==='cohort'){
+    rrBox.classList.add('good');
+    $('rrTag').textContent='✅ 信頼できる（真値と一致）';
+    $('rrRange').textContent='';
+  }else if(state.prevCorrect){
+    rrBox.classList.add('good');
+    $('rrTag').textContent='✅ 有病率で補正して復元';
+    $('rrRange').textContent='';
+  }else{
+    rrBox.classList.add('bad');
+    $('rrTag').textContent='❌ サンプリング次第で動く → 意味なし';
+    // 観測したRRの幅を記録
+    state.rrMin=Math.min(state.rrMin,o.rr);
+    state.rrMax=Math.max(state.rrMax,o.rr);
+    if(state.rrMax-state.rrMin>0.02)
+      $('rrRange').textContent='これまで観測したRRの幅: '
+        +state.rrMin.toFixed(2)+' 〜 '+state.rrMax.toFixed(2);
+    else $('rrRange').textContent='';
+  }
+
+  // 計算式パネル
+  rrResClass = (state.mode==='cohort'||state.prevCorrect)?'good':'bad';
+  $('fTitle').textContent = (state.mode==='cc'&&state.prevCorrect)
+    ? '🧮 いま計算している式（有病率で列を補正後）'
+    : '🧮 いま計算している式（スライダーと連動）';
+
+  // ORボックス
+  $('orTrue').textContent='真の集団のオッズ比 ＝ '+tOR.toFixed(2);
+  $('orTag').textContent = state.dataset==='rare'
+    ? '🔒 不変 ＋ まれな疾病なので OR ≈ RR'
+    : '🔒 サンプリングに対して不変';
+
+  // ヒント・フッター
+  if(state.mode==='cohort'){
+    $('hint').innerHTML='💡 追跡率スライダーを動かしても <b>RR は '+tRR.toFixed(2)
+      +' のまま</b>。行（曝露群）を間引いても各行の発症割合は保たれます。'
+      +'次は上の「症例対照研究」を押してみましょう。';
+    $('takeaway').innerHTML='🎯 <b>コホート研究</b>：研究者が決めるのは「行」。'
+      +'各行の中の発症割合をそのまま観察できる → <b>リスク比が出せる</b>。';
+  }else if(state.prevCorrect){
+    $('hint').innerHTML='💡 <b>有病率という外部情報</b>があれば、歪んだ列の合計を'
+      +'真の比率（症例:対照）に補正でき、リスク比を復元できます。';
+    $('takeaway').innerHTML='🎯 症例対照研究でも <b>有病率がわかっていれば</b>'
+      +'列を補正してリスク比を復元できる。逆に言えば、有病率なしでは出せない。';
+  }else{
+    $('hint').innerHTML='💡 「対照の登録率」スライダーを動かしてみよう。'
+      +'<b>RR の値は大きく変動するのに、OR の値はまったく変わりません。</b> '
+      +'発症割合（リスク）は対照の人数の決め方で変わってしまうためです。';
+    $('takeaway').innerHTML='🎯 <b>症例対照研究</b>：研究者が決めるのは「列」。'
+      +'発症割合がさじ加減で変わる → <b>リスク比は出せない</b>。'
+      +'でも <b>オッズ比は列の選び方に対して不変</b>なので、これだけは出せる。';
+  }
+
+  // 対照:症例比の表示
+  if(state.mode==='cc'){
+    const cases=(p.eD+p.uD)*state.fD, ctrl=(p.eH+p.uH)*state.fH;
+    $('ratioNote').textContent='→ 集まる人数: 症例 '+fmt(cases)
+      +'人 / 対照 '+fmt(ctrl)+'人（症例1人あたり対照 '
+      +(ctrl/cases).toFixed(1)+'人）';
+  }
+  setTargets();
+}
+
+//=================== イベント ===================
+function setMode(m){
+  state.mode=m;
+  state.rrMin=Infinity; state.rrMax=-Infinity;
+  $('btnCohort').classList.toggle('active',m==='cohort');
+  $('btnCC').classList.toggle('active',m==='cc');
+  $('cohortControls').style.display = m==='cohort'?'block':'none';
+  $('ccControls').style.display = m==='cc'?'block':'none';
+  refresh();
+}
+$('btnCohort').onclick=()=>setMode('cohort');
+$('btnCC').onclick=()=>setMode('cc');
+
+$('fE').oninput=e=>{state.fE=e.target.value/100; $('fEval').textContent=e.target.value+'%'; refresh();};
+$('fU').oninput=e=>{state.fU=e.target.value/100; $('fUval').textContent=e.target.value+'%'; refresh();};
+$('fD').oninput=e=>{state.fD=e.target.value/100; $('fDval').textContent=e.target.value+'%'; refresh();};
+$('fH').oninput=e=>{state.fH=e.target.value/100; $('fHval').textContent=e.target.value+'%'; refresh();};
+$('prevCorrect').onchange=e=>{state.prevCorrect=e.target.checked; refresh();};
+
+$('rareBtn').onclick=function(){
+  state.dataset = state.dataset==='common'?'rare':'common';
+  const rare = state.dataset==='rare';
+  this.classList.toggle('on',rare);
+  this.textContent = rare?'通常の疾病に戻す':'まれな疾病に切替';
+  const p=pop();
+  $('townPop').textContent='（人口 1,000人 ＝ 疾病あり '
+    +fmt(p.eD+p.uD)+'人 / 有病率 '
+    +(((p.eD+p.uD)/1000*100)).toFixed(1)+'%）';
+  state.rrMin=Infinity; state.rrMax=-Infinity;
+  buildDots();
+  refresh();
+};
+
+//=================== 初期化 ===================
+function init(){
+  // 16:9ステージのスケーリング
+  const stage=$('stage');
+  function rescale(){
+    const s=Math.min(window.innerWidth/1280, window.innerHeight/720);
+    stage.style.transform='scale('+s+')';
+  }
+  rescale(); window.addEventListener('resize',rescale);
+
+  const p=pop();
+  $('townPop').textContent='（人口 1,000人 ＝ 疾病あり '
+    +fmt(p.eD+p.uD)+'人 / 有病率 '
+    +(((p.eD+p.uD)/1000*100)).toFixed(1)+'%）';
+  buildDots();
+  setMode('cohort');
+}
+init();
+</script>
+</body>
+</html>
