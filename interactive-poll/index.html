@@ -177,12 +177,12 @@ textarea { resize: vertical; }
 
 /* viewportに収める: アクティブカードはflex columnで残りスペースを結果に割当 */
 .card.active.active-question {
-  height: calc(100vh - 100px);
-  max-height: calc(100vh - 60px);
+  min-height: calc(100vh - 120px);
+  max-height: calc(100vh - 40px);
   display: flex;
   flex-direction: column;
-  padding: clamp(14px, 2vw, 22px);
-  overflow: hidden;
+  padding: clamp(12px, 2vw, 20px);
+  overflow: visible;
 }
 .active-question > * { flex-shrink: 0; }
 .active-question .big-q { margin: 8px 0 10px; font-size: clamp(1.6rem, 3.5vw, 2.8rem); }
