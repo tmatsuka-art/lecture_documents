@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>作業環境測定 A測定シミュレータ（ホルムアルデヒド）</title>
+<style>
+  :root{
+    --primary:#1a5276; --primary-light:#2980b9; --primary-bg:#eaf2f8;
+    --text-main:#2c3e50; --text-sub:#5d6d7e;
+    --bg-white:#ffffff; --bg-light:#f8f9fa; --border:#dfe4e8;
+    --c-mgmt:#222;         /* 管理濃度 */
+    --c-ea1:#c0392b;       /* 第一評価値 */
+    --c-ea2:#d35400;       /* 第二評価値 */
+    --c-gm:#2980b9;        /* 幾何平均 */
+    --c-points:#16a085;    /* 測定値ドット */
+    --c-class1:#27ae60;
+    --c-class2:#f39c12;
+    --c-class3:#c0392b;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0; padding:0;}
+  body{
+    font-family:'Yu Gothic','YuGothic','Hiragino Sans','Noto Sans JP',sans-serif;
+    background:#eef2f5; color:var(--text-main); line-height:1.5;
+    padding:12px;
+  }
+  .wrap{max-width:980px; margin:0 auto;}
+  h1{font-size:1.25rem; color:var(--primary); margin:0 0 4px;}
+  .subtitle{color:var(--text-sub); font-size:0.85rem; margin-bottom:14px;}
+
+  .grid{display:grid; gap:14px; grid-template-columns:1fr;}
+  @media (min-width:760px){
+    .grid{grid-template-columns:1fr 1fr;}
+    .span2{grid-column:span 2;}
+  }
+
+  .card{background:var(--bg-white); border:1px solid var(--border);
+        border-radius:10px; padding:14px;}
+  .card h2{font-size:1.0rem; color:var(--primary); margin:0 0 10px;
+           border-left:4px solid var(--primary-light); padding-left:8px;}
+
+  .row{display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap;}
+  .row label{flex:0 0 9.5em; font-weight:700; font-size:0.9rem;}
+  .row input[type=number]{
+    flex:1 1 8em; min-width:0;
+    padding:8px 10px; font-size:1rem; border:1px solid var(--border);
+    border-radius:6px; background:#fff; -webkit-appearance:none;
+  }
+  .row .unit{color:var(--text-sub); font-size:0.85rem;}
+
+  .points{display:grid; grid-template-columns:repeat(5, 1fr); gap:6px;}
+  @media (max-width:520px){ .points{grid-template-columns:repeat(2, 1fr);} }
+  .points .p{display:flex; flex-direction:column;}
+  .points .p label{font-size:0.78rem; color:var(--text-sub); margin-bottom:2px;}
+  .points .p input{padding:8px; font-size:1rem; border:1px solid var(--border);
+                   border-radius:6px;}
+
+  .btns{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
+  .btns button{
+    padding:8px 14px; border:none; border-radius:6px; cursor:pointer;
+    font-size:0.9rem; font-weight:700;
+  }
+  .btn-primary{background:var(--primary); color:#fff;}
+  .btn-ghost{background:#ecf0f1; color:var(--text-main);}
+  .btn-sample{background:var(--primary-bg); color:var(--primary);}
+
+  .stats{display:grid; grid-template-columns:repeat(2,1fr); gap:8px;}
+  .stat{background:var(--bg-light); border-radius:8px; padding:8px 10px;}
+  .stat .label{font-size:0.75rem; color:var(--text-sub);}
+  .stat .value{font-size:1.2rem; font-weight:700; color:var(--primary);}
+  .stat.ea1 .value{color:var(--c-ea1);}
+  .stat.ea2 .value{color:var(--c-ea2);}
+  .stat.gm  .value{color:var(--c-gm);}
+  .stat.gsd .value{color:var(--text-main);}
+
+  .verdict{
+    margin-top:10px; padding:12px; border-radius:10px; text-align:center;
+    color:#fff; font-weight:800; font-size:1.05rem; letter-spacing:.04em;
+  }
+  .verdict .desc{font-weight:500; font-size:0.82rem; margin-top:4px; opacity:.95;}
+  .v1{background:var(--c-class1);}
+  .v2{background:var(--c-class2);}
+  .v3{background:var(--c-class3);}
+
+  .chart-wrap{width:100%; overflow:hidden;}
+  svg{width:100%; height:auto; display:block;}
+
+  .legend{display:flex; flex-wrap:wrap; gap:10px 14px; font-size:0.8rem;
+          color:var(--text-sub); margin-top:6px;}
+  .legend span{display:inline-flex; align-items:center;}
+  .sw{display:inline-block; width:12px; height:12px; border-radius:2px; margin-right:5px;}
+
+  details{background:var(--bg-light); border-radius:8px; padding:8px 12px;
+          font-size:0.85rem; margin-top:8px;}
+  details summary{cursor:pointer; font-weight:700; color:var(--primary);}
+  details p, details ul{margin:6px 0;}
+  details code{background:#fff; padding:1px 4px; border-radius:3px;}
+
+  .warn{color:var(--c-ea1); font-size:0.82rem; margin-top:6px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>作業環境測定 A測定シミュレータ</h1>
+  <div class="subtitle">5測定点の濃度から幾何平均・幾何標準偏差・第一/第二評価値を求め、対数正規分布で可視化します（厚労省 作業環境評価基準準拠）。</div>
+
+  <div class="grid">
+    <!-- 入力 -->
+    <div class="card">
+      <h2>入力</h2>
+
+      <div class="row">
+        <label for="subst">対象物質</label>
+        <input id="subst" type="text" value="ホルムアルデヒド" style="flex:1 1 8em; padding:8px 10px; font-size:1rem; border:1px solid var(--border); border-radius:6px;">
+      </div>
+
+      <div class="row">
+        <label for="mgmt">管理濃度 E</label>
+        <input id="mgmt" type="number" step="0.001" min="0" value="0.1" inputmode="decimal">
+        <span class="unit">ppm</span>
+      </div>
+
+      <div style="margin-top:10px; font-weight:700; font-size:0.9rem;">5測定点の濃度（ppm）</div>
+      <div class="points" id="points">
+        <div class="p"><label>測定点 #1</label><input data-i="0" type="number" step="0.001" min="0" inputmode="decimal" value="0.05"></div>
+        <div class="p"><label>測定点 #2</label><input data-i="1" type="number" step="0.001" min="0" inputmode="decimal" value="0.08"></div>
+        <div class="p"><label>測定点 #3</label><input data-i="2" type="number" step="0.001" min="0" inputmode="decimal" value="0.12"></div>
+        <div class="p"><label>測定点 #4</label><input data-i="3" type="number" step="0.001" min="0" inputmode="decimal" value="0.06"></div>
+        <div class="p"><label>測定点 #5</label><input data-i="4" type="number" step="0.001" min="0" inputmode="decimal" value="0.09"></div>
+      </div>
+
+      <div class="btns">
+        <button class="btn-primary" id="calc">計算する</button>
+        <button class="btn-sample" id="samp1">サンプル①（良好）</button>
+        <button class="btn-sample" id="samp2">サンプル②（境界）</button>
+        <button class="btn-sample" id="samp3">サンプル③（要改善）</button>
+        <button class="btn-ghost" id="clr">クリア</button>
+      </div>
+      <div class="warn" id="warn"></div>
+    </div>
+
+    <!-- 結果 -->
+    <div class="card">
+      <h2>計算結果</h2>
+      <div class="stats">
+        <div class="stat gm"><div class="label">幾何平均 M1</div><div class="value" id="v-gm">—</div></div>
+        <div class="stat gsd"><div class="label">幾何標準偏差 GSD (σ1)</div><div class="value" id="v-gsd">—</div></div>
+        <div class="stat ea1"><div class="label">第一評価値 EA1 (上側5%)</div><div class="value" id="v-ea1">—</div></div>
+        <div class="stat ea2"><div class="label">第二評価値 EA2 (算術平均推定)</div><div class="value" id="v-ea2">—</div></div>
+      </div>
+      <div class="verdict" id="verdict">—</div>
+      <details>
+        <summary>判定ルール</summary>
+        <ul>
+          <li><b>第1管理区分</b>：EA1 &lt; E（管理良好）</li>
+          <li><b>第2管理区分</b>：EA2 ≤ E ≤ EA1（改善努力）</li>
+          <li><b>第3管理区分</b>：EA2 &gt; E（直ちに改善）</li>
+        </ul>
+      </details>
+    </div>
+
+    <!-- グラフ -->
+    <div class="card span2">
+      <h2>予想される室内濃度分布（対数正規分布）</h2>
+      <div class="chart-wrap">
+        <svg id="chart" viewBox="0 0 800 380" preserveAspectRatio="xMidYMid meet" aria-label="濃度分布"></svg>
+      </div>
+      <div class="legend">
+        <span><span class="sw" style="background:var(--c-ea2)"></span>第二評価値 EA2</span>
+        <span><span class="sw" style="background:var(--c-ea1)"></span>第一評価値 EA1</span>
+        <span><span class="sw" style="background:var(--c-mgmt)"></span>管理濃度 E</span>
+        <span><span class="sw" style="background:var(--c-points); border-radius:50%"></span>5測定点</span>
+      </div>
+      <details>
+        <summary>計算式と背景</summary>
+        <p>5測定値 x₁…x₅ について自然対数 yᵢ = ln(xᵢ) をとり、その平均 μ と標本標準偏差 σ から：</p>
+        <ul>
+          <li>幾何平均 <code>M1 = exp(μ)</code></li>
+          <li>幾何標準偏差 <code>GSD = exp(σ)</code></li>
+          <li>第一評価値 <code>EA1 = exp(μ + 1.645σ)</code> ＝ 単位作業場所全体の濃度分布の上側5%点の推定</li>
+          <li>第二評価値 <code>EA2 = exp(μ + 0.5σ²)</code> ＝ 同分布の算術平均（時間加重平均濃度）の推定</li>
+        </ul>
+        <p>ホルムアルデヒドの管理濃度は <b>0.1 ppm</b>（労働安全衛生法 作業環境評価基準）。</p>
+      </details>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+const $ = (id)=>document.getElementById(id);
+const pointsInputs = ()=>Array.from(document.querySelectorAll('#points input'));
+
+function readValues(){
+  const xs = pointsInputs().map(el=>parseFloat(el.value)).filter(v=>!isNaN(v) && v>0);
+  const E  = parseFloat($('mgmt').value);
+  return {xs, E};
+}
+
+function calcStats(xs){
+  const n = xs.length;
+  const ys = xs.map(Math.log);
+  const mu = ys.reduce((a,b)=>a+b,0)/n;
+  const variance = ys.reduce((a,b)=>a + (b-mu)*(b-mu), 0) / (n-1); // sample SD
+  const sigma = Math.sqrt(variance);
+  return {
+    n, mu, sigma,
+    M1: Math.exp(mu),
+    GSD: Math.exp(sigma),
+    EA1: Math.exp(mu + 1.645*sigma),
+    EA2: Math.exp(mu + 0.5*sigma*sigma),
+  };
+}
+
+// 対数正規分布 PDF（log scale描画用に xに対する密度を返す）
+function lognPdf(x, mu, sigma){
+  if(x<=0) return 0;
+  const z = (Math.log(x)-mu)/sigma;
+  return (1/(x*sigma*Math.sqrt(2*Math.PI))) * Math.exp(-0.5*z*z);
+}
+
+function fmt(v, d=4){
+  if(!isFinite(v)) return '—';
+  if(v===0) return '0';
+  let s;
+  if(v>=1) s = v.toFixed(3);
+  else if(v>=0.1) s = v.toFixed(3);
+  else if(v>=0.01) s = v.toFixed(4);
+  else s = v.toPrecision(3);
+  // 末尾の不要な0を削除（"0.1000"→"0.1"）
+  if(s.includes('.')) s = s.replace(/0+$/,'').replace(/\.$/,'');
+  return s;
+}
+
+function classify(EA1, EA2, E){
+  if(EA1 < E)  return {n:1, label:'第1管理区分', cls:'v1', desc:'管理は良好。現状維持。'};
+  if(EA2 > E)  return {n:3, label:'第3管理区分', cls:'v3', desc:'直ちに改善が必要。'};
+  return        {n:2, label:'第2管理区分', cls:'v2', desc:'改善努力が必要。'};
+}
+
+// 線形軸用の「きれい」な目盛り生成
+function niceTicks(xmin, xmax, target=6){
+  const range = xmax - xmin;
+  if(range<=0) return [xmin];
+  const rough = range/target;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough/mag;
+  let step;
+  if(norm<1.5) step = 1*mag;
+  else if(norm<3) step = 2*mag;
+  else if(norm<7) step = 5*mag;
+  else step = 10*mag;
+  const start = Math.ceil(xmin/step)*step;
+  const ticks = [];
+  for(let v=start; v<=xmax+step*0.0001; v+=step){
+    // 浮動小数の丸め誤差対策
+    ticks.push(Math.round(v/step)*step);
+  }
+  return ticks;
+}
+
+function drawChart(s, E, xs){
+  const svg = $('chart');
+  const W=800, H=380;
+  const margin = {l:52, r:18, t:18, b:46};
+  const plotW = W-margin.l-margin.r;
+  const plotH = H-margin.t-margin.b;
+
+  // ★ 固定レンジ（線形）：0 〜 3×E。サンプル切替で動かない（管理濃度Eが中央付近）。
+  const xMin = 0;
+  const xMax = 3 * E;
+  // Y軸は現在の分布のピークに合わせて自動スケール（曲線が常に約90%の高さで見える）
+  const peakDensity = lognPdf(Math.exp(s.mu - s.sigma*s.sigma), s.mu, s.sigma);
+  const yMax = peakDensity * 1.1;
+
+  const xToPx = (x)=>margin.l + (x-xMin)/(xMax-xMin)*plotW;
+  const yToPx = (y)=>margin.t + plotH - Math.min(y, yMax)/yMax*plotH*0.92;
+
+  // 線形等間隔サンプリングで分布曲線
+  const N = 400;
+  const samples = [];
+  for(let i=0;i<=N;i++){
+    const x = xMin + (xMax-xMin)*i/N;
+    const y = lognPdf(x, s.mu, s.sigma);
+    samples.push({x, y});
+  }
+
+  // 曲線パス
+  let dLine = '';
+  samples.forEach((p,i)=>{
+    const px = xToPx(p.x), py = yToPx(p.y);
+    dLine += (i===0?'M':'L') + px.toFixed(1)+','+py.toFixed(1)+' ';
+  });
+
+  // 上側5%領域（x > EA1）の塗り
+  let dFill = '';
+  if(s.EA1 < xMax){
+    const ea1Px = xToPx(s.EA1);
+    const ea1Py = yToPx(lognPdf(s.EA1, s.mu, s.sigma));
+    dFill = `M${ea1Px.toFixed(1)},${(margin.t+plotH).toFixed(1)} L${ea1Px.toFixed(1)},${ea1Py.toFixed(1)} `;
+    samples.filter(p=>p.x>=s.EA1).forEach(p=>{
+      dFill += 'L'+xToPx(p.x).toFixed(1)+','+yToPx(p.y).toFixed(1)+' ';
+    });
+    dFill += `L${(margin.l+plotW).toFixed(1)},${(margin.t+plotH).toFixed(1)} Z`;
+  }
+
+  // 線形目盛り
+  const ticks = niceTicks(xMin, xMax, 6);
+  function tickFmt(v){
+    const a = Math.abs(v);
+    if(a===0) return '0';
+    if(a>=1) return String(+v.toFixed(2));
+    if(a>=0.1) return String(+v.toFixed(2));
+    if(a>=0.01) return String(+v.toFixed(3));
+    return String(+v.toFixed(4));
+  }
+
+  let svgHtml = '';
+  // 軸ベース
+  svgHtml += `<line x1="${margin.l}" y1="${margin.t+plotH}" x2="${margin.l+plotW}" y2="${margin.t+plotH}" stroke="#888" stroke-width="1"/>`;
+  // x軸 目盛り
+  ticks.forEach(v=>{
+    const px = xToPx(v);
+    svgHtml += `<line x1="${px}" y1="${margin.t+plotH}" x2="${px}" y2="${margin.t+plotH+4}" stroke="#888"/>`;
+    svgHtml += `<text x="${px}" y="${margin.t+plotH+18}" font-size="11" fill="#5d6d7e" text-anchor="middle">${tickFmt(v)}</text>`;
+    // 補助縦線（薄）
+    svgHtml += `<line x1="${px}" y1="${margin.t}" x2="${px}" y2="${margin.t+plotH}" stroke="#eee" stroke-width="1"/>`;
+  });
+  svgHtml += `<text x="${margin.l+plotW/2}" y="${H-8}" font-size="12" fill="#2c3e50" text-anchor="middle" font-weight="700">濃度 (ppm)</text>`;
+  svgHtml += `<text x="16" y="${margin.t+plotH/2}" font-size="11" fill="#5d6d7e" transform="rotate(-90,16,${margin.t+plotH/2})" text-anchor="middle">確率密度</text>`;
+
+  // 上側5%塗り
+  if(dFill){
+    svgHtml += `<path d="${dFill}" fill="rgba(192,57,43,0.15)" stroke="none"/>`;
+  }
+  // 分布曲線
+  svgHtml += `<path d="${dLine}" fill="none" stroke="#2c3e50" stroke-width="2"/>`;
+
+  // 縦線描画ヘルパ（範囲外なら省略）
+  function vLine(x, color, label, dash){
+    if(!(x>=xMin && x<=xMax) || !isFinite(x)) return '';
+    const px = xToPx(x);
+    const dashAttr = dash?` stroke-dasharray="${dash}"`:'';
+    let h = `<line x1="${px}" y1="${margin.t}" x2="${px}" y2="${margin.t+plotH}" stroke="${color}" stroke-width="2"${dashAttr}/>`;
+    h += `<text x="${px+3}" y="${margin.t+12}" font-size="11" fill="${color}" font-weight="700">${label}</text>`;
+    h += `<text x="${px+3}" y="${margin.t+25}" font-size="10" fill="${color}">${fmt(x)} ppm</text>`;
+    return h;
+  }
+  svgHtml += vLine(s.EA2, 'var(--c-ea2)', 'EA2','4,3');
+  svgHtml += vLine(s.EA1, 'var(--c-ea1)', 'EA1','');
+  svgHtml += vLine(E,     'var(--c-mgmt)','E (管理濃度)','6,4');
+
+  // 測定値ドット（範囲内のみ）
+  xs.forEach((x,i)=>{
+    if(x<xMin || x>xMax) return;
+    const px = xToPx(x);
+    const py = margin.t+plotH-6;
+    svgHtml += `<circle cx="${px}" cy="${py}" r="5" fill="var(--c-points)" stroke="#fff" stroke-width="1.5"/>`;
+    svgHtml += `<text x="${px}" y="${py-8}" font-size="10" fill="var(--c-points)" text-anchor="middle">#${i+1}</text>`;
+  });
+
+  // EA1超過の注記（範囲外で見えない場合）
+  if(s.EA1 > xMax){
+    svgHtml += `<text x="${margin.l+plotW-4}" y="${margin.t+12}" font-size="11" fill="var(--c-ea1)" font-weight="700" text-anchor="end">EA1=${fmt(s.EA1)} ppm（範囲外 →）</text>`;
+  }
+
+  svg.innerHTML = svgHtml;
+}
+
+function update(){
+  const {xs, E} = readValues();
+  const warn = $('warn');
+  warn.textContent='';
+  if(xs.length<2){ warn.textContent='2点以上の正の数値を入力してください。'; return; }
+  if(!(E>0)){ warn.textContent='管理濃度 E に正の数値を入力してください。'; return; }
+
+  const s = calcStats(xs);
+  $('v-gm').textContent  = fmt(s.M1)+' ppm';
+  $('v-gsd').textContent = s.GSD.toFixed(3);
+  $('v-ea1').textContent = fmt(s.EA1)+' ppm';
+  $('v-ea2').textContent = fmt(s.EA2)+' ppm';
+
+  const v = classify(s.EA1, s.EA2, E);
+  const verdict = $('verdict');
+  verdict.className = 'verdict '+v.cls;
+  verdict.innerHTML = v.label + ` <span style="font-weight:500">(対象: ${$('subst').value || '—'}, E=${fmt(E)} ppm)</span>`
+    + `<div class="desc">${v.desc}</div>`;
+
+  drawChart(s, E, xs);
+}
+
+function setPoints(arr){
+  pointsInputs().forEach((el,i)=>{ el.value = arr[i] ?? ''; });
+  update();
+}
+
+$('calc').addEventListener('click', update);
+$('clr').addEventListener('click', ()=>setPoints(['','','','','']));
+$('samp1').addEventListener('click', ()=>setPoints([0.02,0.03,0.04,0.025,0.035]));
+$('samp2').addEventListener('click', ()=>setPoints([0.05,0.08,0.12,0.06,0.09]));
+$('samp3').addEventListener('click', ()=>setPoints([0.08,0.18,0.35,0.10,0.22]));
+document.querySelectorAll('#points input, #mgmt').forEach(el=>{
+  el.addEventListener('input', update);
+});
+
+update();
+</script>
+</body>
+</html>
