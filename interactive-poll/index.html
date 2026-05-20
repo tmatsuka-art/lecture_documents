@@ -1211,6 +1211,17 @@ function initPendingWordClouds(){
       for (let i = 0; i < w.length; i++) h = ((h * 31) + w.charCodeAt(i)) | 0;
       return Math.abs(h);
     }
+    // 描画完了まで canvas を隠す → 完成したら一気に表示(描画中の「動き」を隠蔽)
+    canvas.style.opacity = '0';
+    let shown = false;
+    const reveal = () => {
+      if (shown) return;
+      shown = true;
+      canvas.style.opacity = '1';
+    };
+    canvas.addEventListener('wordcloudstop', reveal, { once: true });
+    // フォールバック: イベントが発火しないケース用に最大3秒で必ず表示
+    setTimeout(reveal, 3000);
     try {
       WordCloud(canvas, {
         list: items,
@@ -1227,9 +1238,10 @@ function initPendingWordClouds(){
         shuffle: false,
         shrinkToFit: true,
       });
-    } catch(e) { console.warn('WordCloud render failed', e); }
-    // 描画に成功してもしなくても、canvasは表示する(失敗時はブランク表示で消えるよりはマシ)
-    canvas.style.opacity = '1';
+    } catch(e) {
+      console.warn('WordCloud render failed', e);
+      reveal();  // 失敗時はブランクでも表示
+    }
   });
   pendingWordClouds = [];
 }
