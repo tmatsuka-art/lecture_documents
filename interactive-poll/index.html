@@ -177,7 +177,7 @@ textarea { resize: vertical; }
 
 /* viewportに収める: アクティブカードはflex columnで残りスペースを結果に割当 */
 .card.active.active-question {
-  min-height: calc(100vh - 100px);
+  height: calc(100vh - 60px);
   display: flex;
   flex-direction: column;
   padding: clamp(12px, 2vw, 20px);
@@ -193,15 +193,15 @@ textarea { resize: vertical; }
 .active-question > .demo-row { flex-shrink: 0; flex-grow: 0; }
 .active-question .big-q { margin: 4px 0 0; font-size: clamp(1.6rem, 3.5vw, 2.8rem); }
 .active-question .results-wrap {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 200px;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
   gap: 22px;
 }
+.active-question .results-wrap.is-ranking { justify-content: flex-end; }
 .active-question .wc-container {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
   display: flex;
   align-items: center;
@@ -751,7 +751,8 @@ function renderActiveCard(session, responses){
 
   let resultsHtml = '';
   if (isRevealed) {
-    resultsHtml = `<div class="results-wrap"><h3 style="color:var(--primary);margin-bottom:8px;font-size:15px;flex-shrink:0">📈 結果発表</h3>${resultMarkup(session, responses)}</div>`;
+    const wrapClass = session.mode === 'ranking' ? 'results-wrap is-ranking' : 'results-wrap';
+    resultsHtml = `<div class="${wrapClass}"><h3 style="color:var(--primary);margin-bottom:8px;font-size:15px;flex-shrink:0">📈 結果発表</h3>${resultMarkup(session, responses)}</div>`;
   }
 
   const isRanking = session.mode === 'ranking';
@@ -795,7 +796,7 @@ function renderActiveCard(session, responses){
         <button class="btn ghost" onclick="stopQuestion()">問題を閉じる</button>
       `}
     </div>
-    <div class="demo-row" style="text-align:center;border-top:1px dashed rgba(64,64,64,0.15);padding-top:8px;margin-top:auto">
+    <div class="demo-row" style="text-align:center;border-top:1px dashed rgba(64,64,64,0.15);padding-top:8px">
       <span style="font-size:11px;color:rgba(64,64,64,0.4);margin-right:6px">動作確認用:</span>
       <button class="btn ghost" style="font-size:11px;padding:4px 10px;color:rgba(64,64,64,0.6)" onclick="generateDemoResponses(30)">🎲 30件追加</button>
       <button class="btn ghost" style="font-size:11px;padding:4px 10px;color:rgba(64,64,64,0.6)" onclick="generateDemoResponses(180)">🎲 180件追加</button>
