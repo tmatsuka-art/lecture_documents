@@ -1241,8 +1241,8 @@ function initPendingWordClouds(){
     try {
       WordCloud(canvas, {
         list: items,
-        gridSize: Math.max(6, Math.floor(w / 110)),
-        weightFactor: (s) => Math.pow(s / maxCount, 0.7) * (w / 9) + 14,
+        gridSize: Math.max(8, Math.floor(Math.min(w, h) / 60)),
+        weightFactor: (s) => Math.pow(s / maxCount, 0.6) * (Math.min(w, h) / 5) + 16,
         fontFamily: '"Geist", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif',
         fontWeight: '700',
         color: (word) => palette[hashWord(word) % palette.length],
@@ -1253,6 +1253,7 @@ function initPendingWordClouds(){
         backgroundColor: 'transparent',
         shuffle: false,
         shrinkToFit: true,
+        shape: 'square',
       });
     } catch(e) {
       console.warn('WordCloud render failed', e);
