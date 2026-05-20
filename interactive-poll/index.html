@@ -193,8 +193,10 @@ textarea { resize: vertical; }
 .active-question > .demo-row { flex-shrink: 0; flex-grow: 0; }
 .active-question .big-q { margin: 4px 0 0; font-size: clamp(1.6rem, 3.5vw, 2.8rem); }
 .active-question .results-wrap {
-  flex: 1 1 0;
-  min-height: 200px;
+  flex-grow: 1;
+  flex-shrink: 1;
+  flex-basis: 0;
+  min-height: 55vh;
   display: flex;
   flex-direction: column;
   gap: 22px;
@@ -1199,9 +1201,12 @@ function initPendingWordClouds(){
     // 親要素の実寸を取得 (results-wrap で残りスペースが割り当てられている)
     const parentW = el.clientWidth || el.offsetWidth || 800;
     const parentH = el.clientHeight || el.offsetHeight || 400;
-    // 横幅は親いっぱいに、高さだけ若干余裕を持たせる(Top5チップとの間隔確保)
+    // 横幅は親いっぱいに
     const w = Math.min(1800, Math.max(400, parentW));
-    const h = Math.max(200, parentH - 20);
+    // 高さは viewport の残りスペースから直接計算 (results-wrap の flex-grow が効ききらない環境でも確実に大きく)
+    // 概算: 問題文+ヘッダ+Top5+ボタン+デモ行 = 約 340px
+    const fillH = Math.max(window.innerHeight - 340, 360);
+    const h = Math.max(parentH - 20, fillH);
     canvas.width = w;
     canvas.height = h;
     canvas.style.width = w + 'px';
