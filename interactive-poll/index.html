@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>衛生化学教室 講義Live投票 | Class Vote Live</title>
+<meta name="description" content="順天堂大学薬学部 衛生化学教室の講義向けリアルタイム投票ツール">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --primary: #0d9488;
+  --primary-mid: #14b8a6;
+  --primary-light: #5eead4;
+  --navy: #1e293b;
+  --mint: #B8D2D3;
+  --text: #404040;
+  --warn: #d97706;
+  --danger: #dc2626;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: 'Geist', 'Noto Sans JP', -apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  background: linear-gradient(to bottom right, #0d9488 0%, #14b8a6 50%, #1e293b 100%);
+  min-height: 100vh;
+  padding: 12px;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+@media (min-width: 640px) { body { padding: 16px; } }
+.app {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+  padding: 16px 20px;
+  min-height: calc(100vh - 24px);
+  display: flex;
+  flex-direction: column;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+@media (min-width: 640px) { .app { padding: 18px 28px; min-height: calc(100vh - 32px); } }
+
+/* ── Brand header ── */
+.brand-header {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 16px; padding-bottom: 12px;
+  border-bottom: 1px solid rgba(64,64,64,0.1);
+  margin-bottom: 20px; flex-wrap: wrap;
+}
+.brand-left { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.brand-label {
+  font-size: 11px; font-weight: 500;
+  color: var(--primary-mid); letter-spacing: 0.12em; text-transform: uppercase;
+}
+.brand-sub { font-size: 13px; color: rgba(64,64,64,0.7); }
+.pin-inline { display: flex; align-items: baseline; gap: 8px; flex-shrink: 0; }
+.pin-inline-label { font-size: 11px; color: rgba(64,64,64,0.6); }
+.pin-inline-val {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 22px; font-weight: 700; color: var(--primary);
+}
+
+/* ── Hero ── */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.8fr) minmax(0, 1.4fr);
+  gap: 24px; align-items: stretch; margin-bottom: 20px;
+}
+@media (max-width: 860px) { .hero { grid-template-columns: 1fr; gap: 20px; } }
+.hero-left { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+.qr-frame {
+  background: white; border: 4px solid var(--primary);
+  border-radius: 24px; padding: 12px;
+  display: flex; flex-direction: column; align-items: center;
+}
+.qr-frame img { width: 280px; height: 280px; display: block; background: rgba(184,210,211,0.2); }
+@media (max-width: 860px) { .qr-frame img { width: 220px; height: 220px; } }
+.qr-caption { margin-top: 6px; font-size: 16px; font-weight: 500; color: rgba(64,64,64,0.8); text-align: center; }
+.pin-big-wrap { text-align: center; }
+.pin-big-label { font-size: 18px; letter-spacing: 0.1em; color: rgba(64,64,64,0.7); font-weight: 500; }
+.pin-big {
+  font-family: 'Geist Mono', ui-monospace, monospace; font-weight: 700;
+  color: var(--primary); font-variant-numeric: tabular-nums;
+  letter-spacing: 0.12em; line-height: 1; font-size: clamp(2.6rem, 6vw, 4.5rem);
+}
+.count-box { background: rgba(184,210,211,0.3); border-radius: 16px; padding: 12px 24px; text-align: center; }
+.count-num {
+  font-weight: 700; color: var(--primary);
+  font-variant-numeric: tabular-nums; line-height: 1;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+}
+.count-label { font-size: 16px; color: rgba(64,64,64,0.7); font-weight: 500; margin-top: 4px; }
+.hero-right { display: flex; flex-direction: column; gap: 16px; justify-content: center; }
+.hero-title {
+  font-size: clamp(1.8rem, 3.5vw, 2.8rem); font-weight: 700;
+  color: var(--primary); text-align: center; letter-spacing: 0.04em;
+}
+.step-list {
+  background: rgba(94,234,212,0.10); border-left: 8px solid var(--primary);
+  border-radius: 0 16px 16px 0; padding: 20px 24px;
+  list-style: none; display: flex; flex-direction: column; gap: 12px;
+}
+.step-item { display: flex; gap: 14px; align-items: flex-start; }
+.step-num {
+  flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%;
+  background: var(--primary); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 20px;
+}
+.step-body { flex: 1; padding-top: 2px; }
+.step-main { font-size: clamp(1rem, 1.5vw, 1.3rem); font-weight: 700; color: var(--text); line-height: 1.35; }
+.step-main em { font-style: normal; color: var(--primary); }
+.step-sub { font-size: 13px; color: rgba(64,64,64,0.7); margin-top: 2px; }
+
+/* ── Cards ── */
+.card {
+  background: white; border: 1px solid rgba(64,64,64,0.1);
+  border-radius: 16px; padding: 20px; margin-bottom: 16px;
+}
+.card.active { border: 2px solid var(--primary); }
+.card-h {
+  font-size: 17px; font-weight: 700; color: var(--primary);
+  margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap;
+}
+.card-h .spacer { flex: 1; }
+
+/* ── Buttons ── */
+.btn {
+  background: var(--primary); color: white; border: none;
+  padding: 11px 20px; border-radius: 10px;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  font-family: inherit; margin: 2px;
+}
+.btn:hover { background: var(--navy); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { background: #cbd5e1; cursor: not-allowed; transform: none; }
+.btn.secondary { background: white; color: var(--primary); border: 2px solid var(--primary); }
+.btn.secondary:hover { background: var(--primary); color: white; }
+.btn.ghost { background: transparent; color: rgba(64,64,64,0.7); border: 1px solid rgba(64,64,64,0.2); }
+.btn.ghost:hover { background: rgba(64,64,64,0.05); color: var(--text); }
+.btn.danger { background: var(--danger); color: white; }
+.btn.danger:hover { background: #991b1b; }
+.btn.warn { background: var(--warn); color: white; }
+.btn.warn:hover { background: #b45309; }
+.btn.big { padding: 14px 26px; font-size: 16px; }
+.btn.huge { padding: 18px 32px; font-size: 18px; border-radius: 14px; }
+
+/* ── Inputs ── */
+input, textarea, select {
+  width: 100%; padding: 11px 14px;
+  border-radius: 10px; border: 1.5px solid rgba(64,64,64,0.2);
+  font-size: 14px; font-family: inherit;
+  background: white; color: var(--text); margin: 4px 0;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none; border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(13,148,136,0.15);
+}
+textarea { resize: vertical; }
+
+/* ── Bars / WordCloud / Rank ── */
+.bar-row { display: flex; align-items: center; margin: 10px 0; gap: 12px; }
+.bar-label { min-width: 140px; font-weight: 600; word-break: break-all; color: var(--text); }
+.bar {
+  background: linear-gradient(90deg, var(--primary), var(--primary-mid));
+  height: 42px; border-radius: 10px;
+  display: flex; align-items: center; padding: 0 14px;
+  color: white; font-weight: 700; min-width: 60px;
+  transition: width 0.6s ease-out; white-space: nowrap;
+}
+.wordcloud {
+  display: flex; flex-wrap: wrap; gap: 12px;
+  justify-content: center; padding: 24px;
+  min-height: 200px; align-items: center;
+}
+.word {
+  padding: 8px 18px; background: rgba(94,234,212,0.12);
+  border: 1.5px solid var(--primary-light); border-radius: 999px;
+  color: var(--primary); font-weight: 700;
+}
+.tally { font-size: 0.7em; color: rgba(64,64,64,0.6); margin-left: 6px; font-weight: 500; }
+.rank-item {
+  background: rgba(184,210,211,0.2); padding: 14px;
+  border-radius: 12px; margin: 8px 0;
+  display: flex; align-items: center; gap: 12px;
+  border: 1.5px solid rgba(94,234,212,0.3);
+}
+.rank-num {
+  background: var(--primary); color: white; border-radius: 50%;
+  width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; flex-shrink: 0;
+}
+.rank-label { flex: 1; font-weight: 600; }
+.rank-btns { display: flex; flex-direction: column; gap: 4px; }
+.rank-btns button { padding: 4px 10px; font-size: 12px; margin: 0; min-width: 36px; }
+.rank-item.draggable { cursor: grab; user-select: none; -webkit-user-select: none; }
+.rank-item.draggable:active { cursor: grabbing; }
+.rank-item.sortable-ghost { opacity: 0.35; background: rgba(94,234,212,0.4); }
+.rank-item.sortable-chosen { box-shadow: 0 8px 24px rgba(0,0,0,0.18); transform: scale(1.02); }
+.rank-item.sortable-drag { box-shadow: 0 12px 30px rgba(0,0,0,0.25); }
+.drag-handle { color: rgba(64,64,64,0.4); font-size: 18px; user-select: none; padding: 0 4px; }
+
+/* ── Status ── */
+.status {
+  padding: 20px; background: rgba(184,210,211,0.3);
+  border: 2px solid var(--mint); border-radius: 14px;
+  text-align: center; font-size: 17px;
+  color: var(--primary); font-weight: 700;
+}
+.status.closed { background: #fef3c7; border-color: #fbbf24; color: #92400e; }
+.muted { color: rgba(64,64,64,0.65); font-size: 14px; }
+.warn-box {
+  background: #fef2f2; border: 1px solid #fca5a5;
+  padding: 14px; border-radius: 12px;
+  color: #991b1b; margin-bottom: 16px;
+}
+.live-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  background: #16a34a; margin-right: 4px; animation: pulse 1.5s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* ── Question bank ── */
+.deck-row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.deck-row label { font-size: 13px; color: rgba(64,64,64,0.7); }
+.deck-row input { max-width: 200px; margin: 0; }
+.q-list { display: flex; flex-direction: column; gap: 8px; }
+.q-item {
+  background: rgba(94,234,212,0.06);
+  border: 1.5px solid rgba(94,234,212,0.4);
+  border-radius: 12px; padding: 12px 14px;
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+.q-item.active {
+  background: rgba(13,148,136,0.10);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(13,148,136,0.15);
+}
+.q-item.done { opacity: 0.55; }
+.q-pos {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 13px; color: rgba(64,64,64,0.5); min-width: 24px;
+}
+.mode-badge {
+  flex-shrink: 0; padding: 4px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; color: white;
+}
+.mode-badge.mb-wordcloud { background: #14b8a6; }
+.mode-badge.mb-ranking { background: #0e7490; }
+.q-item-text { flex: 1; min-width: 200px; font-weight: 500; color: var(--text); }
+.q-item-meta { font-size: 12px; color: rgba(64,64,64,0.6); }
+.q-item-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.q-item-actions .btn { padding: 6px 12px; font-size: 12px; }
+.q-form { background: rgba(184,210,211,0.10); border-radius: 12px; padding: 16px; margin-top: 12px; }
+.q-form label { display: block; font-size: 13px; color: rgba(64,64,64,0.7); margin: 8px 0 4px; font-weight: 600; }
+.q-form .row-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 600px) { .q-form .row-grid { grid-template-columns: 1fr; } }
+
+/* ── Active question / timer ── */
+.active-question .big-q {
+  font-size: clamp(1.4rem, 3vw, 2.2rem); font-weight: 700;
+  color: var(--text); line-height: 1.3; text-align: center;
+  margin: 8px 0 16px;
+}
+.timer {
+  text-align: center;
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: clamp(2.2rem, 6vw, 4rem);
+  font-weight: 700; color: var(--primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em; line-height: 1;
+  margin: 4px 0;
+}
+.timer.warn { color: var(--warn); animation: pulse 1s infinite; }
+.timer.expired { color: var(--danger); }
+.timer-label { font-size: 13px; color: rgba(64,64,64,0.6); text-align: center; }
+.timer-progress {
+  height: 10px; background: rgba(64,64,64,0.08);
+  border-radius: 999px; overflow: hidden; margin: 10px 0;
+}
+.timer-progress-fill {
+  height: 100%; background: linear-gradient(90deg, var(--primary), var(--primary-mid));
+  border-radius: 999px; transition: width 1s linear, background 0.3s;
+}
+.timer-progress-fill.warn { background: linear-gradient(90deg, var(--warn), #fbbf24); }
+.timer-progress-fill.expired { background: var(--danger); }
+
+.q-controls {
+  display: flex; gap: 8px; justify-content: center;
+  margin-top: 16px; flex-wrap: wrap;
+}
+
+/* ── Student view ── */
+.big-question {
+  font-size: clamp(1.4rem, 2.5vw, 2rem); font-weight: 700;
+  color: var(--primary); margin: 0 0 16px; line-height: 1.3;
+}
+.choice-btn-stack { display: flex; flex-direction: column; gap: 10px; }
+
+/* ── Reveal animation ── */
+.reveal-card { animation: revealFlip 0.6s ease-out; }
+@keyframes revealFlip {
+  0% { transform: scale(0.92) rotateX(-15deg); opacity: 0; }
+  100% { transform: scale(1) rotateX(0); opacity: 1; }
+}
+
+/* ── Home ── */
+.home-card-grid {
+  display: grid; gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+.home-hero { text-align: center; padding: 40px 20px; }
+.home-hero h1 { font-size: clamp(2rem, 4vw, 3rem); color: var(--primary); font-weight: 700; margin-bottom: 8px; }
+.home-hero p { color: rgba(64,64,64,0.7); font-size: 16px; }
+
+@media (max-width: 600px) {
+  body { padding: 8px; }
+  .app { padding: 14px 16px; min-height: calc(100vh - 16px); }
+  .step-num { width: 38px; height: 38px; font-size: 18px; }
+  .bar-label { min-width: 80px; font-size: 14px; }
+  .bar { height: 36px; padding: 0 12px; font-size: 14px; }
+  .card { padding: 16px; }
+}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+// ============================================================
+// Supabase設定
+// ============================================================
+const SUPABASE_URL = 'https://gmkrsgqgndlrabiicvkh.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_0ZCMmC57gwzd7M3G0ggIOw_AK6sse05';
+// ============================================================
+
+const POLL_INTERVAL_MS = 1500;
+const TIMER_TICK_MS = 250;
+const headers = {
+  'apikey': SUPABASE_KEY,
+  'Authorization': 'Bearer ' + SUPABASE_KEY,
+  'Content-Type': 'application/json'
+};
+
+// ── Supabase REST helpers ──
+async function getSession(code){
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/poll_sessions?code=eq.${code}&select=*`, {headers});
+  if (!r.ok) throw new Error('getSession ' + r.status);
+  return (await r.json())[0] || null;
+}
+async function getResponses(code){
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/poll_responses?code=eq.${code}&select=*`, {headers});
+  if (!r.ok) throw new Error('getResponses ' + r.status);
+  return await r.json();
+}
+async function upsertSession(code, fields){
+  const body = JSON.stringify({ code, ...fields, updated_at: new Date().toISOString() });
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/poll_sessions`, {
+    method: 'POST',
+    headers: { ...headers, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+    body
+  });
+  if (!r.ok) console.warn('upsertSession', r.status, await r.text().catch(()=>''));
+}
+async function deleteResponses(code){
+  await fetch(`${SUPABASE_URL}/rest/v1/poll_responses?code=eq.${code}`, { method: 'DELETE', headers });
+}
+async function deleteSession(code){
+  await deleteResponses(code);
+  await fetch(`${SUPABASE_URL}/rest/v1/poll_sessions?code=eq.${code}`, { method: 'DELETE', headers });
+}
+async function submitResponse(code, studentId, payload){
+  const body = JSON.stringify({ code, student_id: studentId, payload });
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/poll_responses`, {
+    method: 'POST',
+    headers: { ...headers, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+    body
+  });
+  if (!r.ok) console.warn('submitResponse', r.status, await r.text().catch(()=>''));
+}
+async function deleteOwnResponse(code, studentId){
+  await fetch(`${SUPABASE_URL}/rest/v1/poll_responses?code=eq.${code}&student_id=eq.${studentId}`, {
+    method: 'DELETE', headers
+  });
+}
+
+// ── Question bank (Supabase poll_questions) ──
+async function listQuestions(deck){
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/poll_questions?deck=eq.${encodeURIComponent(deck)}&select=*&order=position.asc,created_at.asc`, {headers});
+  if (!r.ok) throw new Error('listQuestions ' + r.status);
+  return await r.json();
+}
+async function createQuestion(q){
+  const body = JSON.stringify(q);
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/poll_questions`, {
+    method: 'POST',
+    headers: { ...headers, 'Prefer': 'return=minimal' },
+    body
+  });
+  if (!r.ok) console.warn('createQuestion', r.status, await r.text().catch(()=>''));
+}
+async function updateQuestionRow(id, fields){
+  const body = JSON.stringify(fields);
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/poll_questions?id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { ...headers, 'Prefer': 'return=minimal' },
+    body
+  });
+  if (!r.ok) console.warn('updateQuestionRow', r.status, await r.text().catch(()=>''));
+}
+async function deleteQuestionRow(id){
+  await fetch(`${SUPABASE_URL}/rest/v1/poll_questions?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE', headers });
+}
+
+// ── Routing ──
+const appEl = document.getElementById('app');
+const params = new URLSearchParams(location.search);
+const route = params.get('r') || 'home';
+const code = params.get('c');
+let pollTimer = null;
+let countdownTimer = null;
+
+function escHtml(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function stopPolling(){ if (pollTimer) clearInterval(pollTimer); pollTimer = null; }
+function stopCountdown(){ if (countdownTimer) clearInterval(countdownTimer); countdownTimer = null; }
+function qrSrc(url){ return 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=' + encodeURIComponent(url); }
+function fmtTime(ms){
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+}
+function remainMs(deadline){
+  if (!deadline) return 0;
+  return Math.max(0, new Date(deadline).getTime() - Date.now());
+}
+
+function brandHeader(subtitle, pinCode){
+  return `
+    <div class="brand-header">
+      <div class="brand-left">
+        <span class="brand-label">Class Vote Live · ${subtitle}</span>
+        <span class="brand-sub">衛生化学教室 講義向けリアルタイム投票</span>
+      </div>
+      ${pinCode ? `<div class="pin-inline">
+        <span class="pin-inline-label">PIN</span>
+        <span class="pin-inline-val">${pinCode}</span>
+      </div>` : ''}
+    </div>`;
+}
+
+// ====== HOME ======
+if (route === 'home') {
+  appEl.innerHTML = `
+    ${brandHeader('ホーム', '')}
+    <div class="home-hero">
+      <h1>講義Live投票</h1>
+      <p>スマホで匿名参加できるライブ投票ツール</p>
+    </div>
+    <div class="home-card-grid">
+      <div class="card">
+        <div class="card-h">🎤 講師として開始</div>
+        <p class="muted" style="margin-bottom:12px">PIN を発行して投票セッションを開始します</p>
+        <button class="btn huge" style="width:100%" onclick="location.href='?r=host'">ホスト画面を開く →</button>
+      </div>
+      <div class="card">
+        <div class="card-h">✏️ 問題を編集</div>
+        <p class="muted" style="margin-bottom:12px">事前にデック(問題セット)を作成・編集します</p>
+        <button class="btn huge secondary" style="width:100%" onclick="location.href='?r=manage'">問題管理画面を開く →</button>
+      </div>
+      <div class="card">
+        <div class="card-h">📱 学生として参加</div>
+        <p class="muted" style="margin-bottom:12px">講師が表示している6桁の PIN を入力</p>
+        <input type="tel" id="joincode" placeholder="123456" maxlength="6" inputmode="numeric" pattern="[0-9]*" style="font-size:2rem;text-align:center;letter-spacing:0.4em;font-family:'Geist Mono',monospace;font-weight:700;color:var(--primary)">
+        <button class="btn huge" style="width:100%;margin-top:8px" onclick="joinByCode()">参加する</button>
+      </div>
+    </div>
+  `;
+  window.joinByCode = () => {
+    const c = document.getElementById('joincode').value.trim();
+    if (/^\d{6}$/.test(c)) location.href = '?r=join&c=' + c;
+    else alert('6桁の数字を入力してください');
+  };
+}
+
+// ====== HOST ======
+else if (route === 'host') {
+  initHost();
+}
+// ====== MANAGE (問題管理) ======
+else if (route === 'manage') {
+  renderManage();
+}
+// ====== JOIN ======
+else if (route === 'join' && code) {
+  renderJoin(code);
+}
+
+async function initHost(){
+  let sessionCode = sessionStorage.getItem('hostCode');
+  if (!sessionCode || params.get('new') === '1') {
+    sessionCode = String(Math.floor(100000 + Math.random()*900000));
+    sessionStorage.setItem('hostCode', sessionCode);
+    await upsertSession(sessionCode, {
+      mode: 'wordcloud', question: '', options: [],
+      phase: 'idle', deadline: null, time_limit_sec: null
+    });
+  }
+  renderHost(sessionCode);
+}
+
+// ── Module-level shared state ──
+let currentDeckQuestions = [];
+
+function getDeckName(){
+  // Used by both host and manage views
+  const el = document.getElementById('deckSelect') || document.getElementById('deckName');
+  return (el && el.value && el.value.trim()) || sessionStorage.getItem('deck') || 'default';
+}
+function hostCode(){ return sessionStorage.getItem('hostCode'); }
+
+async function listAllDecks(){
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/poll_questions?select=deck`, {headers});
+  if (!r.ok) return [];
+  const rows = await r.json();
+  const decks = [...new Set(rows.map(r => r.deck).filter(Boolean))];
+  if (!decks.includes('default')) decks.unshift('default');
+  return decks.sort();
+}
+
+async function renderDeckSelect(selectId, onChange){
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  const decks = await listAllDecks();
+  const last = sessionStorage.getItem('deck') || 'default';
+  sel.innerHTML = decks.map(d => `<option value="${escHtml(d)}" ${d===last?'selected':''}>${escHtml(d)}</option>`).join('');
+  sel.onchange = async () => {
+    sessionStorage.setItem('deck', sel.value);
+    if (onChange) await onChange(sel.value);
+  };
+}
+
+// ====== HOST (live session control) ======
+function renderHost(code){
+  const studentUrl = `${location.origin}${location.pathname}?r=join&c=${code}`;
+  appEl.innerHTML = `
+    ${brandHeader('発表者画面', code)}
+
+    <section class="hero" id="heroSection">
+      <div class="hero-left">
+        <div class="qr-frame">
+          <img src="${qrSrc(studentUrl)}" alt="参加用QRコード">
+          <p class="qr-caption">スマホのカメラで読み取り</p>
+        </div>
+        <div class="pin-big-wrap">
+          <p class="pin-big-label">または PIN を入力</p>
+          <p class="pin-big">${code}</p>
+        </div>
+        <div class="count-box">
+          <p class="count-num" id="participantCount">0</p>
+          <p class="count-label">人が参加中</p>
+        </div>
+      </div>
+      <div class="hero-right">
+        <p class="hero-title">参加してください</p>
+        <ol class="step-list">
+          <li class="step-item"><span class="step-num">1</span><div class="step-body"><p class="step-main">スマホで <em>QRコード</em> を読み取り、または PIN を入力</p></div></li>
+          <li class="step-item"><span class="step-num">2</span><div class="step-body"><p class="step-main">講師が <em>問題を出題</em> するまで待つ</p></div></li>
+          <li class="step-item"><span class="step-num">3</span><div class="step-body"><p class="step-main">表示された問題に <em>制限時間内</em> に回答</p></div></li>
+          <li class="step-item"><span class="step-num">4</span><div class="step-body"><p class="step-main"><em>「送信」</em> を押して投票完了</p></div></li>
+        </ol>
+      </div>
+    </section>
+
+    <div class="card" id="activeCard" style="display:none"></div>
+
+    <div class="card" id="deckControl">
+      <div class="card-h">
+        🎯 出題するデックを選択
+        <span class="spacer"></span>
+        <a href="?r=manage" class="btn ghost">✏️ 問題を編集 →</a>
+      </div>
+      <div class="deck-row">
+        <label>デック:</label>
+        <select id="deckSelect" style="max-width:240px"></select>
+        <span id="deckMeta" class="muted">読み込み中…</span>
+      </div>
+      <button class="btn huge" style="width:100%;margin-top:14px" onclick="startDeck()">▶ デックを最初から開始</button>
+    </div>
+
+    <div style="text-align:right;margin-bottom:24px">
+      <button class="btn danger" onclick="endSession()">セッション終了</button>
+    </div>
+  `;
+
+  // Populate deck dropdown and meta
+  renderDeckSelect('deckSelect', async () => { await updateDeckMeta(); });
+  updateDeckMeta();
+
+  async function updateDeckMeta(){
+    const meta = document.getElementById('deckMeta');
+    if (!meta) return;
+    try {
+      const qs = await listQuestions(getDeckName());
+      currentDeckQuestions = qs;
+      meta.textContent = qs.length ? `${qs.length}問が登録されています` : '⚠️ このデックには問題がありません';
+    } catch(e) { meta.textContent = '読み込みエラー'; }
+  }
+
+  // Live session polling
+  const tick = async () => {
+    try {
+      const [session, responses] = await Promise.all([getSession(code), getResponses(code)]);
+      if (!session) return;
+      const pc = document.getElementById('participantCount');
+      if (pc) pc.textContent = responses.length;
+      renderActiveCard(session, responses);
+    } catch(e) { console.warn(e); }
+  };
+  tick();
+  stopPolling();
+  pollTimer = setInterval(tick, POLL_INTERVAL_MS);
+}
+
+function normalizeOptions(s){
+  if (!s) return;
+  if (typeof s.options === 'string') {
+    try { s.options = JSON.parse(s.options); } catch { s.options = []; }
+  }
+  if (!Array.isArray(s.options)) s.options = [];
+}
+
+function renderActiveCard(session, responses){
+  const card = document.getElementById('activeCard');
+  const hero = document.getElementById('heroSection');
+  const deckCtrl = document.getElementById('deckControl');
+  const phase = session.phase || 'idle';
+  if (!card) return;
+  if (phase === 'idle' || !session.question) {
+    card.style.display = 'none';
+    if (hero) hero.style.display = '';
+    if (deckCtrl) deckCtrl.style.display = '';
+    stopCountdown();
+    return;
+  }
+  card.style.display = 'block';
+  if (hero) hero.style.display = 'none';
+  if (deckCtrl) deckCtrl.style.display = 'none';
+  card.className = 'card active active-question' + (phase === 'revealed' ? ' reveal-card' : '');
+
+  normalizeOptions(session);
+
+  const total = responses.length;
+  const ms = remainMs(session.deadline);
+  const expired = ms === 0;
+  const isRevealed = phase === 'revealed';
+
+  const cid = sessionStorage.getItem('currentQuestionId');
+  const idx = currentDeckQuestions.findIndex(q => q.id === cid);
+  const progress = idx >= 0 ? `${idx+1} / ${currentDeckQuestions.length} 問目` : '';
+  const isLast = idx >= 0 && idx === currentDeckQuestions.length - 1;
+
+  let resultsHtml = '';
+  if (isRevealed) {
+    resultsHtml = `<div style="margin-top:20px"><h3 style="color:var(--primary);margin-bottom:12px">📈 結果発表</h3>${resultMarkup(session, responses)}</div>`;
+  }
+
+  const isRanking = session.mode === 'ranking';
+  const optsHtml = (isRanking && !isRevealed && session.options.length)
+    ? `<div style="background:rgba(184,210,211,0.15);border:1.5px solid rgba(94,234,212,0.4);border-radius:12px;padding:14px 18px;margin:12px 0">
+         <div class="muted" style="margin-bottom:6px;font-weight:600">📋 選択肢 (学生はこれを順位付け):</div>
+         <ol style="margin-left:24px;line-height:1.8;color:var(--text);font-weight:500">
+           ${session.options.map(o => `<li>${escHtml(o)}</li>`).join('')}
+         </ol>
+       </div>`
+    : '';
+  const optsWarn = (isRanking && !session.options.length)
+    ? `<div class="warn-box">⚠️ このランキング問題に選択肢が設定されていません。問題管理画面で確認してください。</div>`
+    : '';
+
+  card.innerHTML = `
+    <div class="card-h">
+      <span class="mode-badge mb-${session.mode}">${session.mode === 'wordcloud' ? '☁️ ワードクラウド' : '🏆 ランキング'}</span>
+      <span style="color:var(--text);font-weight:600">現在の問題${progress ? ' · ' + progress : ''}</span>
+      <span class="spacer"></span>
+      <span style="font-size:13px;color:rgba(64,64,64,0.6)">回答 ${total}人</span>
+    </div>
+    <p class="big-q">${escHtml(session.question)}</p>
+    ${optsWarn}
+    ${optsHtml}
+
+    ${!isRevealed ? `
+      <div class="timer ${expired ? 'expired' : (ms < 10000 ? 'warn' : '')}" id="hostTimer">${fmtTime(ms)}</div>
+      <div class="timer-label">${expired ? '⏹ 締め切りました' : '残り時間'}</div>
+      <div class="timer-progress"><div class="timer-progress-fill ${expired ? 'expired' : (ms < 10000 ? 'warn' : '')}" id="hostTimerFill" style="width:${(ms/(session.time_limit_sec*1000))*100}%"></div></div>
+    ` : ''}
+
+    ${resultsHtml}
+
+    <div class="q-controls">
+      ${!isRevealed ? `
+        ${!expired ? '<button class="btn warn" onclick="closeNow()">⏹ 今すぐ締め切る</button>' : ''}
+        <button class="btn huge" onclick="revealResults()">📊 結果を表示する</button>
+      ` : `
+        <button class="btn huge" onclick="nextQuestion()">${isLast ? '✅ デックを完了する' : '⏭ 次の問題へ'}</button>
+        <button class="btn ghost" onclick="stopQuestion()">問題を閉じる</button>
+      `}
+    </div>
+  `;
+
+  if (!isRevealed && !expired) {
+    stopCountdown();
+    countdownTimer = setInterval(() => {
+      const m = remainMs(session.deadline);
+      const t = document.getElementById('hostTimer');
+      const f = document.getElementById('hostTimerFill');
+      if (!t) { stopCountdown(); return; }
+      t.textContent = fmtTime(m);
+      t.classList.toggle('warn', m < 10000 && m > 0);
+      t.classList.toggle('expired', m === 0);
+      if (f) {
+        f.style.width = `${(m/(session.time_limit_sec*1000))*100}%`;
+        f.classList.toggle('warn', m < 10000 && m > 0);
+        f.classList.toggle('expired', m === 0);
+      }
+      if (m === 0) stopCountdown();
+    }, TIMER_TICK_MS);
+  }
+}
+
+// ── Host-side session control functions (need session code) ──
+window.startQ = async (id) => {
+  const code = hostCode();
+  if (!code) { alert('ホストセッションが見つかりません'); return; }
+  const qs = currentDeckQuestions.length ? currentDeckQuestions : await listQuestions(getDeckName());
+  const q = qs.find(x => x.id === id);
+  if (!q) return;
+  const deadline = new Date(Date.now() + q.time_limit_sec * 1000).toISOString();
+  await deleteResponses(code);
+  await upsertSession(code, {
+    mode: q.mode, question: q.question, options: q.options || [],
+    phase: 'live', deadline: deadline, time_limit_sec: q.time_limit_sec
+  });
+  sessionStorage.setItem('currentQuestionId', id);
+};
+
+window.revealResults = async () => {
+  const code = hostCode();
+  if (code) await upsertSession(code, { phase: 'revealed' });
+};
+
+window.startDeck = async () => {
+  const code = hostCode();
+  if (!code) { alert('ホストセッションが見つかりません'); return; }
+  const qs = await listQuestions(getDeckName());
+  if (!qs.length) { alert('このデックには問題がありません。\n「✏️ 問題を編集」から追加してください。'); return; }
+  currentDeckQuestions = qs;
+  const cid = sessionStorage.getItem('currentQuestionId');
+  if (cid && !confirm('現在の問題を中断してデックを最初から始めますか？')) return;
+  await startQ(qs[0].id);
+};
+
+window.nextQuestion = async () => {
+  const cid = sessionStorage.getItem('currentQuestionId');
+  const qs = currentDeckQuestions.length ? currentDeckQuestions : await listQuestions(getDeckName());
+  const i = qs.findIndex(q => q.id === cid);
+  if (i >= 0 && i+1 < qs.length) { await startQ(qs[i+1].id); }
+  else {
+    await stopQuestion();
+    alert('✅ デック完了! お疲れさまでした');
+  }
+};
+
+window.stopQuestion = async () => {
+  const code = hostCode();
+  if (!code) return;
+  await upsertSession(code, {
+    phase: 'idle', question: '', options: [],
+    deadline: null, time_limit_sec: null
+  });
+  sessionStorage.removeItem('currentQuestionId');
+};
+
+window.closeNow = async () => {
+  const code = hostCode();
+  if (code) await upsertSession(code, { deadline: new Date().toISOString() });
+};
+
+window.endSession = async () => {
+  const code = hostCode();
+  if (!code) { location.href = '?'; return; }
+  if (confirm('セッションを終了しますか？(PIN が無効になります)')) {
+    stopPolling(); stopCountdown();
+    await deleteSession(code);
+    sessionStorage.removeItem('hostCode');
+    location.href = '?';
+  }
+};
+
+// ====== MANAGE (問題管理ページ) ======
+async function renderManage(){
+  appEl.innerHTML = `
+    ${brandHeader('問題管理', '')}
+
+    <div class="card">
+      <div class="card-h">
+        📚 デックを選択
+        <span class="spacer"></span>
+        <a href="?r=host" class="btn ghost">← ホスト画面に戻る</a>
+      </div>
+      <div class="deck-row">
+        <label>デック:</label>
+        <select id="deckSelect" style="max-width:240px"></select>
+        <button class="btn ghost" onclick="newDeck()">＋ 新規デック</button>
+        <button class="btn ghost" onclick="renameDeck()">名前変更</button>
+        <button class="btn ghost danger" onclick="deleteDeck()" style="color:#dc2626;border-color:#fca5a5">デック削除</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">📋 問題リスト</div>
+      <div id="qList" class="q-list"><p class="muted">読み込み中…</p></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h" id="formTitle">＋ 問題を追加</div>
+      <div class="q-form" id="qForm">
+        <div class="row-grid">
+          <div>
+            <label>モード</label>
+            <select id="newMode">
+              <option value="wordcloud">☁️ ワードクラウド (自由記述)</option>
+              <option value="ranking">🏆 ランキング (順位付け)</option>
+            </select>
+          </div>
+          <div>
+            <label>制限時間 (秒)</label>
+            <input type="number" id="newTime" value="30" min="5" max="600">
+          </div>
+        </div>
+        <label>問題文</label>
+        <textarea id="newQuestion" rows="2" placeholder="例: "環境汚染"と聞いて思い浮かぶ言葉は？"></textarea>
+        <label id="newOptionsLabel">選択肢 (ワードクラウドでは不要)</label>
+        <textarea id="newOptions" rows="4" placeholder="予防接種&#10;水道整備&#10;禁煙対策&#10;受動喫煙対策" style="display:none"></textarea>
+        <div style="margin-top:10px">
+          <button class="btn" onclick="saveQuestion()" id="addQBtn">＋ 追加</button>
+          <button class="btn ghost" onclick="cancelEdit()" id="cancelEditBtn" style="display:none">キャンセル</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('newMode').onchange = (e) => {
+    const isRanking = e.target.value === 'ranking';
+    document.getElementById('newOptions').style.display = isRanking ? 'block' : 'none';
+    document.getElementById('newOptionsLabel').textContent = isRanking
+      ? '選択肢 (1行に1つ)' : '選択肢 (ワードクラウドでは不要)';
+  };
+
+  await renderDeckSelect('deckSelect', async () => { await refreshQuestionList(); });
+  await refreshQuestionList();
+}
+
+window.refreshQuestionList = async () => {
+  const list = document.getElementById('qList');
+  if (!list) return;
+  try {
+    const qs = await listQuestions(getDeckName());
+    currentDeckQuestions = qs;
+    if (!qs.length) {
+      list.innerHTML = '<p class="muted">このデックには問題がありません。下のフォームから追加してください。</p>';
+      return;
+    }
+    list.innerHTML = qs.map((q,i) => `
+      <div class="q-item">
+        <div class="q-pos">${i+1}.</div>
+        <span class="mode-badge mb-${q.mode}">${q.mode === 'wordcloud' ? '☁️ Cloud' : '🏆 Rank'}</span>
+        <div class="q-item-text">${escHtml(q.question)}</div>
+        <div class="q-item-meta">⏱️ ${q.time_limit_sec}秒${q.mode === 'ranking' ? ' / ' + (q.options||[]).length + '選択肢' : ''}</div>
+        <div class="q-item-actions">
+          <button class="btn ghost" onclick="moveQ('${q.id}', -1)" ${i===0?'disabled':''}>▲</button>
+          <button class="btn ghost" onclick="moveQ('${q.id}', 1)" ${i===qs.length-1?'disabled':''}>▼</button>
+          <button class="btn ghost" onclick="editQuestion('${q.id}')">編集</button>
+          <button class="btn ghost" onclick="deleteQ('${q.id}')">🗑️</button>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    list.innerHTML = `<div class="warn-box">問題リストの読み込みに失敗しました。Supabaseのテーブル<code>poll_questions</code>が作成されているか確認してください。<br><br>${escHtml(e.message)}</div>`;
+  }
+};
+
+window.saveQuestion = async () => {
+  const mode = document.getElementById('newMode').value;
+  const question = document.getElementById('newQuestion').value.trim();
+  const timeLimit = parseInt(document.getElementById('newTime').value) || 30;
+  const optsRaw = document.getElementById('newOptions').value;
+  const options = mode === 'ranking'
+    ? optsRaw.split('\n').map(s=>s.trim()).filter(s=>s)
+    : [];
+  if (!question) { alert('問題文を入力してください'); return; }
+  if (mode === 'ranking' && options.length < 2) { alert('ランキングは2つ以上の選択肢が必要です'); return; }
+
+  const editingId = document.getElementById('qForm').dataset.editing;
+  if (editingId) {
+    await updateQuestionRow(editingId, { mode, question, options, time_limit_sec: timeLimit });
+    cancelEdit();
+  } else {
+    const id = 'q_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+    const deck = getDeckName();
+    const existing = await listQuestions(deck);
+    const position = (existing[existing.length-1]?.position || 0) + 1;
+    await createQuestion({ id, deck, mode, question, options, time_limit_sec: timeLimit, position });
+    document.getElementById('newQuestion').value = '';
+    document.getElementById('newOptions').value = '';
+  }
+  await refreshQuestionList();
+};
+
+window.cancelEdit = () => {
+  const form = document.getElementById('qForm');
+  if (!form) return;
+  delete form.dataset.editing;
+  document.getElementById('newQuestion').value = '';
+  document.getElementById('newOptions').value = '';
+  document.getElementById('newTime').value = 30;
+  document.getElementById('newMode').value = 'wordcloud';
+  document.getElementById('newOptions').style.display = 'none';
+  document.getElementById('newOptionsLabel').textContent = '選択肢 (ワードクラウドでは不要)';
+  document.getElementById('addQBtn').textContent = '＋ 追加';
+  document.getElementById('cancelEditBtn').style.display = 'none';
+  document.getElementById('formTitle').textContent = '＋ 問題を追加';
+};
+
+window.editQuestion = async (id) => {
+  const qs = await listQuestions(getDeckName());
+  const q = qs.find(x => x.id === id);
+  if (!q) return;
+  document.getElementById('newMode').value = q.mode;
+  document.getElementById('newQuestion').value = q.question;
+  document.getElementById('newTime').value = q.time_limit_sec;
+  document.getElementById('newOptions').value = (q.options || []).join('\n');
+  document.getElementById('newOptions').style.display = q.mode === 'ranking' ? 'block' : 'none';
+  document.getElementById('newOptionsLabel').textContent = q.mode === 'ranking' ? '選択肢 (1行に1つ)' : '選択肢 (ワードクラウドでは不要)';
+  document.getElementById('qForm').dataset.editing = id;
+  document.getElementById('addQBtn').textContent = '✓ 更新';
+  document.getElementById('cancelEditBtn').style.display = 'inline-block';
+  document.getElementById('formTitle').textContent = '✏️ 問題を編集';
+  document.getElementById('qForm').scrollIntoView({behavior:'smooth'});
+};
+
+window.deleteQ = async (id) => {
+  if (!confirm('この問題を削除しますか？')) return;
+  await deleteQuestionRow(id);
+  await refreshQuestionList();
+};
+
+window.moveQ = async (id, dir) => {
+  const qs = await listQuestions(getDeckName());
+  const i = qs.findIndex(q => q.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= qs.length) return;
+  await updateQuestionRow(qs[i].id, { position: qs[j].position });
+  await updateQuestionRow(qs[j].id, { position: qs[i].position });
+  await refreshQuestionList();
+};
+
+window.newDeck = async () => {
+  const name = prompt('新しいデック名を入力してください (例: 第1回授業)');
+  if (!name) return;
+  const clean = name.trim();
+  if (!clean) return;
+  sessionStorage.setItem('deck', clean);
+  await renderDeckSelect('deckSelect', async () => { await refreshQuestionList(); });
+  const sel = document.getElementById('deckSelect');
+  if (sel && ![...sel.options].some(o => o.value === clean)) {
+    const opt = document.createElement('option');
+    opt.value = clean; opt.textContent = clean; opt.selected = true;
+    sel.appendChild(opt);
+  }
+  if (sel) sel.value = clean;
+  await refreshQuestionList();
+};
+
+window.renameDeck = async () => {
+  const oldName = getDeckName();
+  const newName = prompt(`デック「${oldName}」の新しい名前を入力してください`, oldName);
+  if (!newName || newName.trim() === oldName) return;
+  const clean = newName.trim();
+  const qs = await listQuestions(oldName);
+  if (!qs.length) {
+    sessionStorage.setItem('deck', clean);
+    await renderDeckSelect('deckSelect', async () => { await refreshQuestionList(); });
+    await refreshQuestionList();
+    return;
+  }
+  for (const q of qs) {
+    await updateQuestionRow(q.id, { deck: clean });
+  }
+  sessionStorage.setItem('deck', clean);
+  await renderDeckSelect('deckSelect', async () => { await refreshQuestionList(); });
+  const sel = document.getElementById('deckSelect');
+  if (sel) sel.value = clean;
+  await refreshQuestionList();
+};
+
+window.deleteDeck = async () => {
+  const name = getDeckName();
+  if (name === 'default') { alert('「default」デックは削除できません'); return; }
+  const qs = await listQuestions(name);
+  if (!confirm(`デック「${name}」と、その中の問題 ${qs.length} 件をすべて削除しますか？`)) return;
+  for (const q of qs) await deleteQuestionRow(q.id);
+  sessionStorage.setItem('deck', 'default');
+  await renderDeckSelect('deckSelect', async () => { await refreshQuestionList(); });
+  await refreshQuestionList();
+};
+
+function resultMarkup(session, responseRows){
+  const responses = responseRows.map(r => r.payload || {});
+  const total = responses.length;
+  if (session.mode === 'wordcloud') {
+    const counts = {};
+    responses.forEach(r => { if (r.text) { const w = r.text.trim(); counts[w] = (counts[w]||0)+1; }});
+    const items = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+    const max = Math.max(1, ...items.map(i => i[1]));
+    return items.length
+      ? `<div class="wordcloud">` + items.map(([w,c])=>{
+          const size = 1 + (c/max) * 2;
+          return `<span class="word" style="font-size:${size}rem">${escHtml(w)}<span class="tally">×${c}</span></span>`;
+        }).join('') + `</div>`
+      : `<p class="muted" style="text-align:center;padding:30px">回答が集まりませんでした</p>`;
+  } else {
+    const opts = session.options || [];
+    const scores = {};
+    opts.forEach(o => scores[o] = 0);
+    responses.forEach(r => {
+      if (Array.isArray(r.ranking)) {
+        r.ranking.forEach((o, idx) => { if (scores[o] !== undefined) scores[o] += (opts.length - idx); });
+      }
+    });
+    const sorted = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+    const max = Math.max(1, ...sorted.map(s=>s[1]));
+    return sorted.map(([o,s],i)=>`
+      <div class="bar-row">
+        <div class="bar-label">${i+1}. ${escHtml(o)}</div>
+        <div class="bar" style="width:${(s/max)*100}%">${s}pt</div>
+      </div>`).join('') || `<p class="muted" style="text-align:center;padding:30px">回答が集まりませんでした</p>`;
+  }
+}
+
+// ====== STUDENT JOIN VIEW ======
+function renderJoin(code){
+  appEl.innerHTML = `
+    ${brandHeader('参加者画面', code)}
+    <div class="card">
+      <div id="joinContent"><p class="muted">接続中…</p></div>
+    </div>
+  `;
+  const studentId = getStudentId();
+  let lastKey = '';
+  let lastSession = null;
+
+  const tick = async () => {
+    try {
+      const [session, responses] = await Promise.all([getSession(code), getResponses(code)]);
+      if (!session) {
+        document.getElementById('joinContent').innerHTML =
+          '<div class="warn-box">セッションが見つかりません。PIN を確認してください。</div>';
+        return;
+      }
+      lastSession = session;
+      const myRow = responses.find(r => r.student_id === studentId);
+      const myResponse = myRow ? myRow.payload : null;
+      const key = JSON.stringify([
+        session.phase, session.question, session.options, session.deadline,
+        myResponse, responses.length
+      ]);
+      if (key === lastKey) return;
+      lastKey = key;
+      renderStudentView(session, responses, myResponse, studentId, code);
+    } catch(e) { console.warn(e); }
+  };
+  tick();
+  stopPolling();
+  pollTimer = setInterval(tick, POLL_INTERVAL_MS);
+
+  // Continuous timer update (independent of poll cycle)
+  stopCountdown();
+  countdownTimer = setInterval(() => {
+    if (!lastSession) return;
+    const t = document.getElementById('studentTimer');
+    if (!t) return;
+    const m = remainMs(lastSession.deadline);
+    t.textContent = fmtTime(m);
+    t.classList.toggle('warn', m < 10000 && m > 0);
+    t.classList.toggle('expired', m === 0);
+    const f = document.getElementById('studentTimerFill');
+    if (f && lastSession.time_limit_sec) {
+      f.style.width = `${(m/(lastSession.time_limit_sec*1000))*100}%`;
+      f.classList.toggle('warn', m < 10000 && m > 0);
+      f.classList.toggle('expired', m === 0);
+    }
+    // When deadline hits, force re-render to switch to "closed" state
+    if (m === 0 && lastSession.phase === 'live') {
+      const stillShowingInput = document.getElementById('wordInput') || document.getElementById('rankList');
+      if (stillShowingInput) {
+        lastKey = ''; // force re-render
+      }
+    }
+  }, TIMER_TICK_MS);
+}
+
+function renderStudentView(session, responses, myResponse, studentId, code){
+  normalizeOptions(session);
+  const content = document.getElementById('joinContent');
+  const phase = session.phase || 'idle';
+  const q = session.question || '';
+
+  // Phase: idle (no active question)
+  if (phase === 'idle' || !q) {
+    content.innerHTML = `
+      <div style="text-align:center;padding:40px 16px">
+        <p class="hero-title" style="font-size:1.6rem">講師が問題を準備中…</p>
+        <p class="muted" style="margin-top:12px"><span class="live-dot"></span>接続中</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Phase: revealed (show results)
+  if (phase === 'revealed') {
+    content.innerHTML = `
+      <p class="big-question">${escHtml(q)}</p>
+      <div class="status" style="margin-bottom:16px">📊 結果発表中</div>
+      ${resultMarkup(session, responses)}
+    `;
+    return;
+  }
+
+  // Phase: live
+  const ms = remainMs(session.deadline);
+  const expired = ms === 0;
+  const tlSec = session.time_limit_sec || 30;
+
+  const timerBlock = `
+    <div class="timer ${expired ? 'expired' : (ms < 10000 ? 'warn' : '')}" id="studentTimer">${fmtTime(ms)}</div>
+    <div class="timer-label">${expired ? '⏹ 締め切りました' : '残り時間'}</div>
+    <div class="timer-progress"><div class="timer-progress-fill ${expired ? 'expired' : (ms < 10000 ? 'warn' : '')}" id="studentTimerFill" style="width:${(ms/(tlSec*1000))*100}%"></div></div>
+  `;
+
+  // Already submitted
+  if (myResponse) {
+    content.innerHTML = `
+      <p class="big-question">${escHtml(q)}</p>
+      <div class="status">✓ 回答を送信しました</div>
+      ${!expired ? timerBlock : ''}
+      ${!expired ? `<div style="text-align:center;margin-top:12px"><button class="btn secondary" onclick="resubmit()">やり直す</button></div>` : ''}
+      ${expired ? `<p class="muted" style="text-align:center;margin-top:16px">結果発表をお待ちください</p>` : ''}
+    `;
+    window.resubmit = async () => { await deleteOwnResponse(code, studentId); };
+    return;
+  }
+
+  // Expired without submitting
+  if (expired) {
+    content.innerHTML = `
+      <p class="big-question">${escHtml(q)}</p>
+      <div class="status closed">⏹ 締め切りました</div>
+      <p class="muted" style="text-align:center;margin-top:12px">結果発表をお待ちください</p>
+    `;
+    return;
+  }
+
+  // Live, not submitted yet
+  if (session.mode === 'wordcloud') {
+    content.innerHTML = `
+      <p class="big-question">${escHtml(q)}</p>
+      ${timerBlock}
+      <input id="wordInput" placeholder="あなたの答えを入力" maxlength="30" autocomplete="off">
+      <button class="btn huge" style="width:100%;margin-top:8px" onclick="submitWord()">送信</button>
+    `;
+    const inp = document.getElementById('wordInput');
+    inp.focus();
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') window.submitWord(); });
+    window.submitWord = async () => {
+      const text = inp.value.trim();
+      if (!text) return;
+      await submitResponse(code, studentId, { text });
+    };
+  } else {
+    // ranking
+    const opts = (session.options || []).slice();
+    if (!opts.length) {
+      content.innerHTML = `
+        <p class="big-question">${escHtml(q)}</p>
+        ${timerBlock}
+        <div class="warn-box">⚠️ 選択肢が設定されていません。講師に確認してください。</div>
+      `;
+      return;
+    }
+    content.innerHTML = `
+      <p class="big-question">${escHtml(q)}</p>
+      ${timerBlock}
+      <p class="muted" style="margin:8px 0">▲▼ボタンで順位を並べ替え (1位が最も支持)</p>
+      <div id="rankList">${opts.map((o,i)=>rankItemHtml(o,i)).join('')}</div>
+      <button class="btn huge" style="width:100%;margin-top:12px" onclick="submitRanking()">この順位で送信</button>
+    `;
+    attachRankHandlers();
+    window.submitRanking = async () => {
+      const ranking = Array.from(document.querySelectorAll('#rankList [data-opt]')).map(e => e.dataset.opt);
+      await submitResponse(code, studentId, { ranking });
+    };
+  }
+}
+
+function rankItemHtml(opt, i){
+  return `<div class="rank-item draggable" data-opt="${escHtml(opt)}">
+    <div class="rank-num">${i+1}</div>
+    <div class="rank-label">${escHtml(opt)}</div>
+    <span class="drag-handle" aria-hidden="true">⋮⋮</span>
+    <div class="rank-btns">
+      <button class="btn secondary up">▲</button>
+      <button class="btn secondary down">▼</button>
+    </div>
+  </div>`;
+}
+
+function renumberRankList(list){
+  Array.from(list.children).forEach((el,i) => {
+    const numEl = el.querySelector('.rank-num');
+    if (numEl) numEl.textContent = i+1;
+  });
+}
+
+function attachRankHandlers(){
+  const list = document.getElementById('rankList');
+  if (!list) return;
+
+  // ▲▼ ボタンによる入れ替え (フォールバック)
+  list.addEventListener('click', e => {
+    const item = e.target.closest('.rank-item');
+    if (!item) return;
+    if (e.target.classList.contains('up') && item.previousElementSibling) {
+      list.insertBefore(item, item.previousElementSibling);
+      renumberRankList(list);
+    } else if (e.target.classList.contains('down') && item.nextElementSibling) {
+      list.insertBefore(item.nextElementSibling, item);
+      renumberRankList(list);
+    }
+  });
+
+  // スワイプ/ドラッグによる並び替え (SortableJS)
+  if (typeof Sortable !== 'undefined') {
+    new Sortable(list, {
+      animation: 180,
+      filter: '.rank-btns, .rank-btns button',
+      preventOnFilter: false,
+      delay: 120,
+      delayOnTouchOnly: true,
+      touchStartThreshold: 6,
+      forceFallback: false,
+      ghostClass: 'sortable-ghost',
+      chosenClass: 'sortable-chosen',
+      dragClass: 'sortable-drag',
+      onEnd: () => renumberRankList(list),
+    });
+  }
+}
+
+function getStudentId(){
+  let id = localStorage.getItem('poll_student_id');
+  if (!id) {
+    id = 's_' + Math.random().toString(36).slice(2,12);
+    localStorage.setItem('poll_student_id', id);
+  }
+  return id;
+}
+</script>
+</body>
+</html>
