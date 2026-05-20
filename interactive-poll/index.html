@@ -690,6 +690,7 @@ function normalizeOptions(s){
 
 let lastActiveCardKey = '';
 let lastActiveCardCount = -1;
+let lastActiveCardPhase = '';
 
 function renderActiveCard(session, responses){
   const card = document.getElementById('activeCard');
@@ -704,12 +705,16 @@ function renderActiveCard(session, responses){
     stopCountdown();
     lastActiveCardKey = '';
     lastActiveCardCount = -1;
+    lastActiveCardPhase = '';
     return;
   }
   card.style.display = 'block';
   if (hero) hero.style.display = 'none';
   if (deckCtrl) deckCtrl.style.display = 'none';
-  card.className = 'card active active-question' + (phase === 'revealed' ? ' reveal-card' : '');
+  // flip 演出は phase が新しく 'revealed' になった瞬間だけ。同じphaseが続く間は付けない
+  const justRevealed = (phase === 'revealed' && lastActiveCardPhase !== 'revealed');
+  lastActiveCardPhase = phase;
+  card.className = 'card active active-question' + (justRevealed ? ' reveal-card' : '');
 
   normalizeOptions(session);
 
@@ -718,11 +723,13 @@ function renderActiveCard(session, responses){
   const expired = ms === 0;
   const isRevealed = phase === 'revealed';
 
-  // 再描画キー: フェーズ/問題/締切/モード/タイマー切れ状態
+  // 再描画キー: フェーズ/問題/締切ms/モード/タイマー切れ状態
   // 結果発表中の回答数は意図的に含めない(ピコピコ防止)。
+  // タイムスタンプはmsに正規化(Supabaseが返す文字列フォーマットの揺れを吸収)
   // デモボタン等で追加された場合は generateDemoResponses が lastActiveCardKey をリセットする。
+  const deadlineMs = session.deadline ? new Date(session.deadline).getTime() : 0;
   const renderKey = JSON.stringify([
-    phase, session.question, session.deadline, session.mode, expired
+    phase, (session.question || '').trim(), deadlineMs, session.mode, expired
   ]);
   if (renderKey === lastActiveCardKey) {
     // 大きな変更なし: 回答数だけ更新して終了 (ワードクラウド等の再描画を防ぐ)
