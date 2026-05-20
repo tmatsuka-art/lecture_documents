@@ -197,7 +197,7 @@ textarea { resize: vertical; }
   min-height: 200px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-end;
   gap: 22px;
 }
 .active-question .wc-container {
@@ -1198,9 +1198,9 @@ function initPendingWordClouds(){
     // 親要素の実寸を取得 (results-wrap で残りスペースが割り当てられている)
     const parentW = el.clientWidth || el.offsetWidth || 800;
     const parentH = el.clientHeight || el.offsetHeight || 400;
-    const w = Math.min(1600, Math.max(400, parentW - 20));
-    // canvasを若干小さくして上下に余白を作る (Top5チップとの干渉防止)
-    const h = Math.max(200, parentH - 30);
+    // 横幅は親いっぱいに、高さだけ若干余裕を持たせる(Top5チップとの間隔確保)
+    const w = Math.min(1800, Math.max(400, parentW));
+    const h = Math.max(200, parentH - 20);
     canvas.width = w;
     canvas.height = h;
     canvas.style.width = w + 'px';
