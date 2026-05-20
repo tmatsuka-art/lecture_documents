@@ -341,6 +341,7 @@ textarea { resize: vertical; }
 <div class="app" id="app"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.2/src/wordcloud2.js"></script>
 <script>
 // ============================================================
 // Supabase設定
@@ -728,6 +729,13 @@ function renderActiveCard(session, responses){
     </div>
   `;
 
+  // WordCloudライブラリが読み込まれていれば、結果のキャンバスを描画(失敗時はpillフォールバック残存)
+  if (isRevealed) {
+    requestAnimationFrame(() => initPendingWordClouds());
+  } else {
+    pendingWordClouds = [];
+  }
+
   stopCountdown();  // 状態が変わるたびに必ず古いタイマーを止める(締め切り直後のちらつき防止)
   if (!isRevealed && !expired) {
     countdownTimer = setInterval(() => {
@@ -1079,6 +1087,42 @@ window.deleteDeck = async () => {
   await refreshQuestionList();
 };
 
+let pendingWordClouds = [];
+
+function initPendingWordClouds(){
+  if (typeof WordCloud === 'undefined') { pendingWordClouds = []; return; }
+  const palette = ['#0d9488', '#0e7490', '#14b8a6', '#0f766e', '#155e75', '#5C2787', '#7B5BB0', '#3aaab2'];
+  pendingWordClouds.forEach(({id, items}) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const w = Math.min(1400, Math.max(400, el.offsetWidth || 800));
+    const h = Math.max(360, Math.min(640, Math.floor(w * 0.55)));
+    el.innerHTML = `<canvas style="display:block;margin:0 auto;max-width:100%"></canvas>`;
+    const canvas = el.firstElementChild;
+    canvas.width = w;
+    canvas.height = h;
+    const maxCount = items[0][1] || 1;
+    try {
+      WordCloud(canvas, {
+        list: items,
+        gridSize: Math.max(6, Math.floor(w / 110)),
+        weightFactor: (s) => Math.pow(s / maxCount, 0.7) * (w / 9) + 14,
+        fontFamily: '"Geist", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif',
+        fontWeight: '700',
+        color: () => palette[Math.floor(Math.random() * palette.length)],
+        rotateRatio: 0.4,
+        rotationSteps: 2,
+        minRotation: -Math.PI/6,
+        maxRotation: Math.PI/6,
+        backgroundColor: 'transparent',
+        shuffle: true,
+        shrinkToFit: true,
+      });
+    } catch(e) { console.warn('WordCloud render failed', e); }
+  });
+  pendingWordClouds = [];
+}
+
 function resultMarkup(session, responseRows){
   const responses = responseRows.map(r => r.payload || {});
   const total = responses.length;
@@ -1086,13 +1130,18 @@ function resultMarkup(session, responseRows){
     const counts = {};
     responses.forEach(r => { if (r.text) { const w = r.text.trim(); counts[w] = (counts[w]||0)+1; }});
     const items = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+    if (!items.length) {
+      return `<p class="muted" style="text-align:center;padding:30px">回答が集まりませんでした</p>`;
+    }
+    const id = 'wc_' + Math.random().toString(36).slice(2,10);
+    pendingWordClouds.push({ id, items });
     const max = Math.max(1, ...items.map(i => i[1]));
-    return items.length
-      ? `<div class="wordcloud">` + items.map(([w,c])=>{
-          const size = 1 + (c/max) * 2;
-          return `<span class="word" style="font-size:${size}rem">${escHtml(w)}<span class="tally">×${c}</span></span>`;
-        }).join('') + `</div>`
-      : `<p class="muted" style="text-align:center;padding:30px">回答が集まりませんでした</p>`;
+    // Fallback pill rendering (used until WordCloud lib loads, or if it fails)
+    const fallback = `<div class="wordcloud">` + items.map(([w,c])=>{
+      const size = 1 + (c/max) * 2;
+      return `<span class="word" style="font-size:${size}rem">${escHtml(w)}<span class="tally">×${c}</span></span>`;
+    }).join('') + `</div>`;
+    return `<div class="wc-container" id="${id}" style="min-height:360px">${fallback}</div>`;
   } else {
     const opts = session.options || [];
     const scores = {};
