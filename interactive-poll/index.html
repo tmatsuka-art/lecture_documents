@@ -177,26 +177,30 @@ textarea { resize: vertical; }
 
 /* viewportに収める: アクティブカードはflex columnで残りスペースを結果に割当 */
 .card.active.active-question {
-  min-height: calc(100vh - 120px);
-  max-height: calc(100vh - 40px);
+  min-height: calc(100vh - 100px);
   display: flex;
   flex-direction: column;
   padding: clamp(12px, 2vw, 20px);
   overflow: visible;
+  gap: 10px;
 }
-.active-question > * { flex-shrink: 0; }
-.active-question .big-q { margin: 8px 0 10px; font-size: clamp(1.6rem, 3.5vw, 2.8rem); }
+.active-question > .card-h,
+.active-question > .big-q,
+.active-question > .timer,
+.active-question > .timer-label,
+.active-question > .timer-progress,
+.active-question > .q-controls,
+.active-question > .demo-row { flex-shrink: 0; flex-grow: 0; }
+.active-question .big-q { margin: 4px 0 0; font-size: clamp(1.6rem, 3.5vw, 2.8rem); }
 .active-question .results-wrap {
-  flex: 1 1 0;
-  min-height: 160px;
-  overflow: hidden;
+  flex: 1 1 auto;
+  min-height: 200px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  margin-top: 10px;
+  gap: 14px;
 }
 .active-question .wc-container {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   align-items: center;
@@ -208,9 +212,10 @@ textarea { resize: vertical; }
   max-width: 100%;
   max-height: 100%;
 }
-.active-question .q-controls { margin-top: 10px; }
-.active-question .timer { margin: 4px 0; font-size: clamp(2rem, 5vw, 3.4rem); }
-.active-question .timer-progress { margin: 6px 0 8px; }
+.active-question .q-controls { margin: 0; }
+.active-question .timer { margin: 2px 0; font-size: clamp(2rem, 5vw, 3.4rem); }
+.active-question .timer-progress { margin: 0; }
+.active-question .wc-top5 { padding: 4px 0; }
 .bar {
   background: linear-gradient(90deg, var(--primary), var(--primary-mid));
   height: 42px; border-radius: 10px;
@@ -713,10 +718,11 @@ function renderActiveCard(session, responses){
   const expired = ms === 0;
   const isRevealed = phase === 'revealed';
 
-  // 再描画キー: フェーズ/問題/締切/モード/タイマー切れ状態 + 結果発表中の回答数
+  // 再描画キー: フェーズ/問題/締切/モード/タイマー切れ状態
+  // 結果発表中の回答数は意図的に含めない(ピコピコ防止)。
+  // デモボタン等で追加された場合は generateDemoResponses が lastActiveCardKey をリセットする。
   const renderKey = JSON.stringify([
-    phase, session.question, session.deadline, session.mode, expired,
-    isRevealed ? total : 0
+    phase, session.question, session.deadline, session.mode, expired
   ]);
   if (renderKey === lastActiveCardKey) {
     // 大きな変更なし: 回答数だけ更新して終了 (ワードクラウド等の再描画を防ぐ)
@@ -781,7 +787,7 @@ function renderActiveCard(session, responses){
         <button class="btn ghost" onclick="stopQuestion()">問題を閉じる</button>
       `}
     </div>
-    <div style="text-align:center;margin-top:8px;border-top:1px dashed rgba(64,64,64,0.15);padding-top:8px;flex-shrink:0">
+    <div class="demo-row" style="text-align:center;border-top:1px dashed rgba(64,64,64,0.15);padding-top:8px;margin-top:auto">
       <span style="font-size:11px;color:rgba(64,64,64,0.4);margin-right:6px">動作確認用:</span>
       <button class="btn ghost" style="font-size:11px;padding:4px 10px;color:rgba(64,64,64,0.6)" onclick="generateDemoResponses(30)">🎲 30件追加</button>
       <button class="btn ghost" style="font-size:11px;padding:4px 10px;color:rgba(64,64,64,0.6)" onclick="generateDemoResponses(180)">🎲 180件追加</button>
@@ -926,6 +932,8 @@ window.generateDemoResponses = async (n = 30) => {
       body: JSON.stringify(chunk)
     }).catch(e => console.warn('demo insert chunk failed', e))
   ));
+  // 次のpollingで強制再描画(キャッシュキーから総数を外したので、これがないと反映されない)
+  lastActiveCardKey = '';
 };
 
 window.endSession = async () => {
@@ -1211,8 +1219,9 @@ function initPendingWordClouds(){
         shuffle: false,
         shrinkToFit: true,
       });
-      canvas.style.opacity = '1';
     } catch(e) { console.warn('WordCloud render failed', e); }
+    // 描画に成功してもしなくても、canvasは表示する(失敗時はブランク表示で消えるよりはマシ)
+    canvas.style.opacity = '1';
   });
   pendingWordClouds = [];
 }
