@@ -1159,18 +1159,31 @@ window.deleteDeck = async () => {
 let pendingWordClouds = [];
 
 function initPendingWordClouds(){
-  if (typeof WordCloud === 'undefined') { pendingWordClouds = []; return; }
+  if (typeof WordCloud === 'undefined') {
+    // ライブラリ未読込: pill フォールバックを残す
+    pendingWordClouds.forEach(({id, items}) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const max = Math.max(1, ...items.map(i => i[1]));
+      el.innerHTML = `<div class="wordcloud">` + items.map(([w,c])=>{
+        const size = 1 + (c/max) * 2;
+        return `<span class="word" style="font-size:${size}rem">${escHtml(w)}<span class="tally">×${c}</span></span>`;
+      }).join('') + `</div>`;
+    });
+    pendingWordClouds = [];
+    return;
+  }
   const palette = ['#0d9488', '#0e7490', '#14b8a6', '#0f766e', '#155e75', '#5C2787', '#7B5BB0', '#3aaab2'];
   pendingWordClouds.forEach(({id, items}) => {
     const el = document.getElementById(id);
     if (!el) return;
+    const canvas = el.querySelector('canvas');
+    if (!canvas) return;
     // 親要素の実寸を取得 (results-wrap で残りスペースが割り当てられている)
     const parentW = el.clientWidth || el.offsetWidth || 800;
     const parentH = el.clientHeight || el.offsetHeight || 400;
     const w = Math.min(1600, Math.max(400, parentW));
     const h = Math.max(200, parentH);
-    el.innerHTML = `<canvas style="display:block;margin:0 auto"></canvas>`;
-    const canvas = el.firstElementChild;
     canvas.width = w;
     canvas.height = h;
     canvas.style.width = w + 'px';
@@ -1198,6 +1211,7 @@ function initPendingWordClouds(){
         shuffle: false,
         shrinkToFit: true,
       });
+      canvas.style.opacity = '1';
     } catch(e) { console.warn('WordCloud render failed', e); }
   });
   pendingWordClouds = [];
@@ -1215,13 +1229,18 @@ function resultMarkup(session, responseRows){
     }
     const id = 'wc_' + Math.random().toString(36).slice(2,10);
     pendingWordClouds.push({ id, items });
-    const max = Math.max(1, ...items.map(i => i[1]));
-    // Fallback pill rendering (used until WordCloud lib loads, or if it fails)
-    const fallback = `<div class="wordcloud">` + items.map(([w,c])=>{
-      const size = 1 + (c/max) * 2;
-      return `<span class="word" style="font-size:${size}rem">${escHtml(w)}<span class="tally">×${c}</span></span>`;
-    }).join('') + `</div>`;
-    return `<div class="wc-container" id="${id}" style="min-height:360px">${fallback}</div>`;
+    // Canvasを最初からDOMに置く + opacity:0 でフェードイン (pill→canvas切替によるピコピコを回避)
+    const top5 = items.slice(0, 5);
+    const top5Html = `
+      <div class="wc-top5" style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:10px;flex-shrink:0">
+        ${top5.map(([w,c], i) => `
+          <span style="background:rgba(94,234,212,0.18);border:1.5px solid rgba(94,234,212,0.5);padding:6px 14px;border-radius:999px;font-size:clamp(13px, 1.4vw, 16px);font-weight:600;color:var(--text)">
+            <strong style="color:var(--primary);margin-right:6px">${i+1}位</strong>${escHtml(w)}
+            <span style="color:rgba(64,64,64,0.65);margin-left:6px">×${c}</span>
+          </span>
+        `).join('')}
+      </div>`;
+    return `<div class="wc-container" id="${id}" style="min-height:200px"><canvas style="display:block;margin:0 auto;opacity:0;transition:opacity 0.3s"></canvas></div>${top5Html}`;
   } else {
     const opts = session.options || [];
     const scores = {};
