@@ -531,16 +531,16 @@ if (route === 'home') {
       </div>
       <div class="card">
         <div class="card-h">📱 学生として参加</div>
-        <p class="muted" style="margin-bottom:12px">講師が表示している6桁の PIN を入力</p>
-        <input type="tel" id="joincode" placeholder="123456" maxlength="6" inputmode="numeric" pattern="[0-9]*" style="font-size:2rem;text-align:center;letter-spacing:0.4em;font-family:'Geist Mono',monospace;font-weight:700;color:var(--primary)">
+        <p class="muted" style="margin-bottom:12px">講師が表示している8桁の PIN を入力</p>
+        <input type="tel" id="joincode" placeholder="12345678" maxlength="8" inputmode="numeric" pattern="[0-9]*" style="font-size:2rem;text-align:center;letter-spacing:0.4em;font-family:'Geist Mono',monospace;font-weight:700;color:var(--primary)">
         <button class="btn huge" style="width:100%;margin-top:8px" onclick="joinByCode()">参加する</button>
       </div>
     </div>
   `;
   window.joinByCode = () => {
     const c = document.getElementById('joincode').value.trim();
-    if (/^\d{6}$/.test(c)) location.href = '?r=join&c=' + c;
-    else alert('6桁の数字を入力してください');
+    if (/^\d{8}$/.test(c)) location.href = '?r=join&c=' + c;
+    else alert('8桁の数字を入力してください');
   };
 }
 
@@ -553,14 +553,15 @@ else if (route === 'manage') {
   renderManage();
 }
 // ====== JOIN ======
-else if (route === 'join' && code) {
+else if (route === 'join' && /^\d{8}$/.test(code || '')) {
   renderJoin(code);
 }
 
 async function initHost(){
   let sessionCode = sessionStorage.getItem('hostCode');
   if (!sessionCode || params.get('new') === '1') {
-    sessionCode = String(Math.floor(100000 + Math.random()*900000));
+    // 8桁の数字 PIN (10000000〜99999999)。総当り耐性を6桁の100倍に
+    sessionCode = String(Math.floor(10000000 + Math.random()*90000000));
     sessionStorage.setItem('hostCode', sessionCode);
     await upsertSession(sessionCode, {
       mode: 'wordcloud', question: '', options: [],
@@ -798,11 +799,13 @@ function renderActiveCard(session, responses){
         <button class="btn ghost" onclick="stopQuestion()">問題を閉じる</button>
       `}
     </div>
+    ${params.get('debug') === '1' ? `
     <div class="demo-row" style="text-align:center;border-top:1px dashed rgba(64,64,64,0.15);padding-top:8px">
-      <span style="font-size:11px;color:rgba(64,64,64,0.4);margin-right:6px">動作確認用:</span>
+      <span style="font-size:11px;color:rgba(64,64,64,0.4);margin-right:6px">動作確認用 (debug=1):</span>
       <button class="btn ghost" style="font-size:11px;padding:4px 10px;color:rgba(64,64,64,0.6)" onclick="generateDemoResponses(30)">🎲 30件追加</button>
       <button class="btn ghost" style="font-size:11px;padding:4px 10px;color:rgba(64,64,64,0.6)" onclick="generateDemoResponses(180)">🎲 180件追加</button>
     </div>
+    ` : ''}
   `;
 
   // WordCloudライブラリが読み込まれていれば、結果のキャンバスを描画(失敗時はpillフォールバック残存)
@@ -1022,29 +1025,50 @@ async function renderManage(){
   await refreshQuestionList();
 }
 
+// q.idの形式バリデーション(第三者が任意IDで poll_questions に書き込んだ場合の防御)
+function isSafeQId(id){
+  return typeof id === 'string' && /^[A-Za-z0-9_-]+$/.test(id) && id.length <= 100;
+}
+
 window.refreshQuestionList = async () => {
   const list = document.getElementById('qList');
   if (!list) return;
   try {
-    const qs = await listQuestions(getDeckName());
+    const qs = (await listQuestions(getDeckName())).filter(q => isSafeQId(q.id));
     currentDeckQuestions = qs;
     if (!qs.length) {
       list.innerHTML = '<p class="muted">このデックには問題がありません。下のフォームから追加してください。</p>';
       return;
     }
+    // q.id は data-id 属性経由(escHtmlで属性安全化)、onclick内には埋め込まない (XSS対策)
     list.innerHTML = qs.map((q,i) => `
-      <div class="q-item">
+      <div class="q-item" data-id="${escHtml(q.id)}">
         <div class="q-pos">${i+1}.</div>
-        <span class="mode-badge mb-${q.mode}">${q.mode === 'wordcloud' ? '☁️ Cloud' : '🏆 Rank'}</span>
+        <span class="mode-badge mb-${q.mode === 'ranking' ? 'ranking' : 'wordcloud'}">${q.mode === 'wordcloud' ? '☁️ Cloud' : '🏆 Rank'}</span>
         <div class="q-item-text">${escHtml(q.question)}</div>
-        <div class="q-item-meta">⏱️ ${q.time_limit_sec}秒${q.mode === 'ranking' ? ' / ' + (q.options||[]).length + '選択肢' : ''}</div>
+        <div class="q-item-meta">⏱️ ${parseInt(q.time_limit_sec)||30}秒${q.mode === 'ranking' ? ' / ' + (q.options||[]).length + '選択肢' : ''}</div>
         <div class="q-item-actions">
-          <button class="btn ghost" onclick="moveQ('${q.id}', -1)" ${i===0?'disabled':''}>▲</button>
-          <button class="btn ghost" onclick="moveQ('${q.id}', 1)" ${i===qs.length-1?'disabled':''}>▼</button>
-          <button class="btn ghost" onclick="editQuestion('${q.id}')">編集</button>
-          <button class="btn ghost" onclick="deleteQ('${q.id}')">🗑️</button>
+          <button class="btn ghost" data-action="up" aria-label="上に移動" ${i===0?'disabled':''}>▲</button>
+          <button class="btn ghost" data-action="down" aria-label="下に移動" ${i===qs.length-1?'disabled':''}>▼</button>
+          <button class="btn ghost" data-action="edit">編集</button>
+          <button class="btn ghost" data-action="delete" aria-label="削除">🗑️</button>
         </div>
       </div>`).join('');
+
+    // イベント委譲: q-item 内のクリックを data-action 別に振り分ける
+    list.onclick = (e) => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn || btn.disabled) return;
+      const item = btn.closest('.q-item');
+      if (!item) return;
+      const id = item.dataset.id;
+      if (!isSafeQId(id)) return;
+      const action = btn.dataset.action;
+      if (action === 'up') window.moveQ(id, -1);
+      else if (action === 'down') window.moveQ(id, 1);
+      else if (action === 'edit') window.editQuestion(id);
+      else if (action === 'delete') window.deleteQ(id);
+    };
   } catch(e) {
     list.innerHTML = `<div class="warn-box">問題リストの読み込みに失敗しました。Supabaseのテーブル<code>poll_questions</code>が作成されているか確認してください。<br><br>${escHtml(e.message)}</div>`;
   }

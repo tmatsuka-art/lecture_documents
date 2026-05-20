@@ -1,133 +1,139 @@
-# 講義Live投票ツール (Supabase版)
+# 講義Live投票ツール (Class Vote Live)
 
-Mentimeter的なライブ投票ツール。3モード対応:
-- 📋 **多肢選択** — 選択肢から1つ選んで投票 → 棒グラフ
-- ☁️ **ワードクラウド** — 自由記述 → 頻出語を大きく表示
-- 🏆 **ランキング** — 学生が順位付け → 集計スコアで表示
+順天堂大学薬学部 衛生化学教室の講義向けリアルタイム投票ツール。スマホで匿名参加できる Mentimeter 風の Web アプリ。
 
-学生は **スマホでQRコード or 4桁コード入力** で匿名参加。
+## 機能概要
 
-## 技術構成
+- 📋 **問題管理ページ**で事前にデック(問題セット)を作成
+- 🎤 **ホスト画面**で「▶ デックを最初から開始」 → カウントダウンタイマー付きで自動進行
+- 📱 学生は **QRコード or 8桁PIN** でスマホから匿名参加
+- 📊 締切時刻 → 「結果を表示する」ボタンで手動めくり → ワードクラウド/ランキング結果が出現
+- ⏭ 「次の問題へ」で自動的に次の問題へ
 
-衛生薬学サイト(`eisei_yakugaku`)のフィードバック機能と同じスタック:
-- **Supabase REST API** + 公開可能キー(`sb_publishable_*`) — SDK不要、`fetch`直叩き
-- **GitHub Actions cron**(`keep-alive.yml`) — 無料プランの7日アイドル停止を防止
-- **GitHub Pages** — 静的ホスティング
-- **ポーリング(1.5秒間隔)** — 30人規模の教室なら十分軽量
+### 2つの投票モード
+- ☁️ **ワードクラウド** — 自由記述、wordcloud2.jsで描画、頻出語が大きく表示。Top5の投票数も併記
+- 🏆 **ランキング** — 学生が選択肢を順位付け。スマホはスワイプドラッグ + ▲▼ボタンで並べ替え
 
-> WebSocket(Supabase Realtime)でなくポーリングを採用しているのは、既存サイトのパターンに揃えるため・SDK追加なしで完結させるため。30人 × 1.5s ポーリングは Supabase 無料枠(50万API call/月)に対して余裕。
+### 技術構成
+- 単一HTML/CSS/JSファイル(SDK不要、CDNで必要なライブラリのみロード)
+- バックエンド: **Supabase REST API**(衛生薬学サイトと同じプロジェクトを再利用)
+- 認証: 公開可能キー(`sb_publishable_*`)をHTMLに直書き、RLSポリシーで匿名アクセス許可
+- ホスティング: **GitHub Pages**(`lecture_documents` リポジトリ)
+- 同期方式: ポーリング(1.5秒間隔、SDKなし)
+- フォント: Geist + Geist Mono + Noto Sans JP(Google Fonts)
+- 外部ライブラリ:
+  - SortableJS(ランキングのドラッグ並べ替え)
+  - wordcloud2.js(ワードクラウド描画)
+  - api.qrserver.com(QR画像生成)
 
 ---
 
 ## セットアップ
 
-### A. 既存のSupabaseプロジェクトを再利用する場合(推奨)
+### 1. Supabaseに以下のSQLを実行
 
-`eisei_yakugaku` で使っている `gmkrsgqgndlrabiicvkh` プロジェクトにテーブルを追加するだけ。
+🔗 https://supabase.com/dashboard → 既存プロジェクト → **SQL Editor** → **New query** に [`schema.sql`](./schema.sql) の中身を全文貼り付け → **Run**
 
-1. [Supabase Dashboard](https://supabase.com/dashboard) → プロジェクトを開く
-2. 左メニュー **SQL Editor** → **New query**
-3. [`schema.sql`](./schema.sql) の中身を全文貼り付け → **Run**
-4. `poll_sessions` と `poll_responses` のテーブルが作成されればOK
+`poll_sessions` / `poll_responses` / `poll_questions` の3テーブル + RLS が作成されます。再実行も安全(`IF NOT EXISTS` + `DROP POLICY IF EXISTS`)。
 
-`index.html` の `SUPABASE_URL` と `SUPABASE_KEY` は既にこのプロジェクトを向いているので、何も書き換え不要。
+### 2. `index.html` 冒頭の Supabase 設定を確認
 
-### B. 新規Supabaseプロジェクトを作る場合
+既存の `gmkrsgqgndlrabiicvkh.supabase.co` プロジェクトを使う場合はそのままでOK。別プロジェクトを使う場合はURLとキーを書き換え。
 
-1. [Supabase Dashboard](https://supabase.com/dashboard) → **New project**
-2. プロジェクトが立ち上がったら **SQL Editor** で `schema.sql` を実行
-3. **Settings → API** から以下を取得:
-   - **Project URL**(例: `https://xxxxx.supabase.co`)
-   - **anon public** key(`sb_publishable_...` 形式)
-4. `index.html` 冒頭を書き換え:
-   ```js
-   const SUPABASE_URL = 'https://xxxxx.supabase.co';
-   const SUPABASE_KEY = 'sb_publishable_...';
-   ```
+```js
+const SUPABASE_URL = 'https://xxxxx.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_...';
+```
+
+### 3. GitHub Pages にデプロイ
+
+`lecture_documents` リポジトリの `interactive-poll/` 配下にコミット&プッシュ → 数分後に下記URLでアクセス可能:
+
+🌐 https://tmatsuka-art.github.io/lecture_documents/interactive-poll/
 
 ---
 
-## デプロイ
+## URL一覧
 
-### GitHub Pages
-
-`lecture_documents` リポジトリにこの `interactive-poll/` フォルダごとコミット&プッシュすれば:
-
-```
-https://<ユーザー名>.github.io/lecture_documents/interactive-poll/
-```
-
-でアクセス可能。教卓PCではホスト画面、学生のスマホでは同URLから「参加」を選ぶ。
-
-### Keep-aliveワークフロー
-
-Supabase無料プランは **7日間アクセスが無いとプロジェクトが停止** します。`eisei_yakugaku` リポジトリの [keep-alive.yml](https://github.com/...) と同じものを `lecture_documents` にも置くか、既存プロジェクトを再利用していれば既存のkeep-aliveがそのまま効きます。
-
-新規プロジェクトの場合のみ、`.github/workflows/keep-alive.yml` を追加:
-
-```yaml
-name: Supabase Keep Alive
-on:
-  schedule:
-    - cron: '0 0 * * *'   # 毎日 UTC 0:00
-  workflow_dispatch:
-jobs:
-  ping:
-    runs-on: ubuntu-latest
-    steps:
-      - run: |
-          curl -s -o /dev/null -w "%{http_code}\n" \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/poll_sessions?select=code&limit=1" \
-            -H "apikey: ${{ secrets.SUPABASE_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_KEY }}"
-```
-
-`SUPABASE_URL` と `SUPABASE_KEY` を Repository Secrets に登録。
+| 画面 | URL |
+|---|---|
+| ホーム | `/?r=home` |
+| 講師(ホスト) | `/?r=host` |
+| 問題管理 | `/?r=manage` |
+| 学生参加 | `/?r=join&c=PIN` |
+| デバッグモード(デモボタン表示) | 任意URLに `&debug=1` を付与 |
 
 ---
 
-## 使い方(授業当日)
+## 使い方フロー
 
-### 講師側
-1. 教卓PCで `index.html` を開く → 「ホスト画面を開く」
-2. 4桁コードとQRコードが表示される
-3. モード(多肢選択/ワードクラウド/ランキング)を選ぶ
-4. 問題文と選択肢を入力 → 「この問題で出題」
-5. 学生の回答が **1.5秒ごと** に棒グラフ/雲で更新
-6. 次の問題に進むときは内容を書き換えて「この問題で出題」(回答は自動リセット)
+### 講師(事前準備)
 
-### 学生側
-1. QRをスマホで読むか、4桁コード入力
-2. 表示された問題に回答 → 「送信」
-3. ✓ 表示が出れば完了。間違えたら「やり直す」で再投票可能
+1. ホーム → **「✏️ 問題を編集」** → 問題管理画面
+2. 「**＋ 新規デック**」で授業回名のデックを作成(例: `第1回授業`)
+3. 「**＋ 問題を追加**」フォームで:
+   - **モード**: ワードクラウド / ランキング
+   - **問題文**: 自由記述
+   - **制限時間**: 秒数(デフォルト30秒)
+   - **選択肢**: ランキングのみ、1行に1つ
+4. ▲▼で順序入れ替え、編集・削除も可能
+
+### 講義当日(出題フロー)
+
+1. ホーム → **「🎤 講師として開始」** → ホスト画面(8桁PIN発行)
+2. プロジェクターに投影、学生に QR or PIN で参加してもらう
+3. デック選択ドロップダウンで授業回を選ぶ → 「**▶ デックを最初から開始**」
+4. 第1問が出題、カウントダウン開始(残り10秒で警告色、0でレッド)
+5. 締切後 → 「**📊 結果を表示する**」 → ワードクラウド or ランキング結果が表示
+6. **「⏭ 次の問題へ」** で自動的に第2問へ
+7. 最後の問題で「**✅ デックを完了する**」 → 待機画面に戻る
+
+### 学生(スマホ)
+
+1. QRコードをカメラで読み取る、または PINを8桁で入力
+2. 問題が出題されるまで待機
+3. **ワードクラウド**: 自由記述を入力 → 送信
+4. **ランキング**: 項目を長押し → スワイプで並べ替え(▲▼ボタンも使用可)→ 送信
+5. 締切後は「結果発表をお待ちください」表示。結果は前のスクリーンを見る
 
 ---
 
-## 衛生薬学での活用例
+## 衛生化学での活用例
 
 | シーン | モード | 問題例 |
 |---|---|---|
 | 導入(関心引き出し) | ワードクラウド | 「"環境汚染"と聞いて思い浮かぶ言葉は?」 |
-| 国試演習 | 多肢選択 | 過去問の選択肢をそのまま出題、即フィードバック |
-| Peer Instruction風 | 多肢選択 | 投票→解説→「リセット」して再投票で正答率の変化 |
+| 苦手調査 | ワードクラウド | 「衛生化学で苦手意識を感じる項目は?」 |
 | 価値観調査 | ランキング | 「公衆衛生政策で優先すべきは?」 |
-| 体験データ収集 | ワードクラウド | 「昨日の朝食は?」→ 疫学解析の題材に |
+| 議論喚起 | ランキング | 「食品添加物のリスク順位は?」 |
+| 体験データ収集 | ワードクラウド | 「昨日の朝食は?」→ 後の疫学解析の題材に |
+
+> 国家試験過去問の多肢選択問題は、本ツールではなく [Eisei Quiz Live](https://eisei-quiz-live.vercel.app/) を使用してください。
 
 ---
 
 ## トラブルシューティング
 
-- **「セッションが見つかりません」**: 講師が終了した or コードが間違い or テーブル未作成
-- **回答が反映されない**: SQL Editorで`schema.sql`を実行し直す。RLSポリシーが正しいか確認
-- **Supabase停止**: 7日以上アイドル放置でプロジェクト停止。keep-aliveワークフローを設定
-- **無料枠**: 50万API call/月 = 30人 × 1.5s × 60分授業 × 約40回相当。通常運用なら余裕
+- **「セッションが見つかりません」**: 講師が終了した、PINが間違い、またはSupabaseが停止中(7日間アイドルで自動停止)
+- **問題リストが空**: 該当デックに問題がない。問題管理画面で追加してください
+- **スワイプが効かない(スマホ)**: 項目を約0.1秒長押し → ドラッグ。即タップではドラッグ開始しません(誤操作防止)
+- **古いバージョンが表示される**: ブラウザキャッシュ。`Ctrl+Shift+R`(PC)/ タブを閉じて開き直す(スマホ)で強制リロード
+- **Supabase停止**: 既存プロジェクトには keep-alive ワークフローが設定済み
 
-## クリーンアップ
+---
 
-不要になった古いセッションは `schema.sql` 末尾の `cleanup_old_poll_sessions()` 関数で削除可能:
+## 開発者向けメモ
 
-```sql
-select cleanup_old_poll_sessions();
-```
+### デバッグモード
+URLに `&debug=1` を付与すると、ホスト画面のアクティブカード下部に **「🎲 30件追加 / 180件追加」** のデモ回答生成ボタンが表示されます。授業前のリハーサルや動作確認用。
 
-Supabase Dashboard → Database → Functions から手動実行、または pg_cron で自動化。
+### セキュリティ
+- 公開可能キーをHTML直書きする設計は Supabase の anon role 設計どおり
+- 教室用の短期匿名ツールとして、RLSは匿名フル許可
+- 機微情報を扱わない設計(学生IDは localStorage のランダム文字列のみ)
+- 本番利用時はセッション終了時にデータ削除推奨
+
+### 既知の制約
+- 同時参加者は ~100人程度を想定(Supabase Realtime ではなくポーリング)
+- 180人規模の利用時は Supabase 無料枠(50万API call/月)を意識
+- 締切後に新規回答が来ても、ワードクラウドは手動でリセット(問題を閉じて再表示)しないと反映されない
