@@ -1211,17 +1211,26 @@ function initPendingWordClouds(){
       for (let i = 0; i < w.length; i++) h = ((h * 31) + w.charCodeAt(i)) | 0;
       return Math.abs(h);
     }
-    // 描画完了まで canvas を隠す → 完成したら一気に表示(描画中の「動き」を隠蔽)
-    canvas.style.opacity = '0';
-    let shown = false;
-    const reveal = () => {
-      if (shown) return;
-      shown = true;
-      canvas.style.opacity = '1';
+    // 描画完了まで canvas を隠す → 完成したら画像に変換して置換 (ライブラリの内部再描画/アニメを完全停止)
+    let frozen = false;
+    const freezeToImage = () => {
+      if (frozen) return;
+      frozen = true;
+      try {
+        const dataUrl = canvas.toDataURL();
+        const img = new Image();
+        img.src = dataUrl;
+        img.alt = 'ワードクラウド結果';
+        img.style.cssText = 'display:block;margin:0 auto;max-width:100%;max-height:100%';
+        if (canvas.parentElement) canvas.parentElement.replaceChild(img, canvas);
+      } catch(e) {
+        console.warn('canvas freeze failed', e);
+        canvas.style.visibility = 'visible';  // フォールバック: そのまま見せる
+      }
     };
-    canvas.addEventListener('wordcloudstop', reveal, { once: true });
+    canvas.addEventListener('wordcloudstop', freezeToImage, { once: true });
     // フォールバック: イベントが発火しないケース用に最大3秒で必ず表示
-    setTimeout(reveal, 3000);
+    setTimeout(freezeToImage, 3000);
     try {
       WordCloud(canvas, {
         list: items,
@@ -1240,7 +1249,7 @@ function initPendingWordClouds(){
       });
     } catch(e) {
       console.warn('WordCloud render failed', e);
-      reveal();  // 失敗時はブランクでも表示
+      canvas.style.visibility = 'visible';  // 失敗時はブランクでも表示
     }
   });
   pendingWordClouds = [];
@@ -1269,7 +1278,7 @@ function resultMarkup(session, responseRows){
           </span>
         `).join('')}
       </div>`;
-    return `<div class="wc-container" id="${id}" style="min-height:200px"><canvas style="display:block;margin:0 auto;opacity:0;transition:opacity 0.3s"></canvas></div>${top5Html}`;
+    return `<div class="wc-container" id="${id}" style="min-height:200px"><canvas style="display:block;margin:0 auto;visibility:hidden"></canvas></div>${top5Html}`;
   } else {
     const opts = session.options || [];
     const scores = {};
