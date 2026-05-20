@@ -721,6 +721,11 @@ function renderActiveCard(session, responses){
         <button class="btn ghost" onclick="stopQuestion()">問題を閉じる</button>
       `}
     </div>
+    <div style="text-align:center;margin-top:20px;border-top:1px dashed rgba(64,64,64,0.15);padding-top:14px">
+      <button class="btn ghost" style="font-size:12px;padding:6px 12px;color:rgba(64,64,64,0.5)" onclick="generateDemoResponses(30)" title="動作確認用に30件のダミー回答を生成します">
+        🎲 デモ回答を30件追加 (動作確認用)
+      </button>
+    </div>
   `;
 
   stopCountdown();  // 状態が変わるたびに必ず古いタイマーを止める(締め切り直後のちらつき防止)
@@ -799,6 +804,51 @@ window.stopQuestion = async () => {
 window.closeNow = async () => {
   const code = hostCode();
   if (code) await upsertSession(code, { deadline: new Date().toISOString() });
+};
+
+// ── デモ回答生成 (動作確認用) ──
+window.generateDemoResponses = async (n = 30) => {
+  const code = hostCode();
+  if (!code) { alert('ホストセッションが見つかりません'); return; }
+  const session = await getSession(code);
+  if (!session || !session.question) { alert('先に問題を出題してください'); return; }
+  normalizeOptions(session);
+
+  // 衛生化学・公衆衛生関連の語彙プール (ワードクラウド用)
+  const wordPool = [
+    '食品衛生', '食品衛生', '食品衛生',
+    '大気汚染', '大気汚染',
+    '水質', '水質',
+    '公害', '公害',
+    '食中毒', '食中毒', '食中毒',
+    '化学物質', '化学物質',
+    '環境', '環境',
+    '有害物質', '毒物', '添加物',
+    '疫学', '統計', '計算問題',
+    '法規', '化学式', '反応式',
+    '暗記', '分析', '微生物', '残留農薬', '放射線'
+  ];
+
+  const tasks = [];
+  for (let i = 0; i < n; i++) {
+    const studentId = `demo_${Date.now()}_${i}_${Math.random().toString(36).slice(2,6)}`;
+    let payload;
+    if (session.mode === 'wordcloud') {
+      // ベキ乗分布で偏りをつける(上位語が頻出するように)
+      const idx = Math.floor(Math.pow(Math.random(), 1.5) * wordPool.length);
+      payload = { text: wordPool[idx] || '回答' };
+    } else {
+      // ranking: 選択肢をランダムシャッフル
+      const opts = session.options.slice();
+      for (let j = opts.length - 1; j > 0; j--) {
+        const k = Math.floor(Math.random() * (j + 1));
+        [opts[j], opts[k]] = [opts[k], opts[j]];
+      }
+      payload = { ranking: opts };
+    }
+    tasks.push(submitResponse(code, studentId, payload));
+  }
+  await Promise.all(tasks);
 };
 
 window.endSession = async () => {
