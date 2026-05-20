@@ -19,13 +19,13 @@
     --c-class3:#c0392b;
   }
   *{box-sizing:border-box;}
-  html,body{margin:0; padding:0;}
+  html,body{margin:0; padding:0; overflow-x:hidden;}
   body{
     font-family:'Yu Gothic','YuGothic','Hiragino Sans','Noto Sans JP',sans-serif;
     background:#eef2f5; color:var(--text-main); line-height:1.5;
     padding:12px;
   }
-  .wrap{max-width:980px; margin:0 auto;}
+  .wrap{max-width:980px; margin:0 auto; width:100%;}
   h1{font-size:1.25rem; color:var(--primary); margin:0 0 4px;}
   .subtitle{color:var(--text-sub); font-size:0.85rem; margin-bottom:14px;}
 
@@ -36,25 +36,25 @@
   }
 
   .card{background:var(--bg-white); border:1px solid var(--border);
-        border-radius:10px; padding:14px;}
+        border-radius:10px; padding:14px; min-width:0;}
   .card h2{font-size:1.0rem; color:var(--primary); margin:0 0 10px;
            border-left:4px solid var(--primary-light); padding-left:8px;}
 
   .row{display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap;}
-  .row label{flex:0 0 9.5em; font-weight:700; font-size:0.9rem;}
-  .row input[type=number]{
-    flex:1 1 8em; min-width:0;
+  .row label{flex:0 0 auto; font-weight:700; font-size:0.9rem; min-width:7em;}
+  .row input[type=number], .row input[type=text]{
+    flex:1 1 6em; min-width:0;
     padding:8px 10px; font-size:1rem; border:1px solid var(--border);
     border-radius:6px; background:#fff; -webkit-appearance:none;
   }
-  .row .unit{color:var(--text-sub); font-size:0.85rem;}
+  .row .unit{color:var(--text-sub); font-size:0.85rem; flex:0 0 auto;}
 
   .points{display:grid; grid-template-columns:repeat(5, 1fr); gap:6px;}
   @media (max-width:520px){ .points{grid-template-columns:repeat(2, 1fr);} }
-  .points .p{display:flex; flex-direction:column;}
+  .points .p{display:flex; flex-direction:column; min-width:0;}
   .points .p label{font-size:0.78rem; color:var(--text-sub); margin-bottom:2px;}
   .points .p input{padding:8px; font-size:1rem; border:1px solid var(--border);
-                   border-radius:6px;}
+                   border-radius:6px; min-width:0; width:100%;}
 
   .btns{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
   .btns button{
@@ -66,8 +66,9 @@
   .btn-sample{background:var(--primary-bg); color:var(--primary);}
 
   .stats{display:grid; grid-template-columns:repeat(2,1fr); gap:8px;}
-  .stat{background:var(--bg-light); border-radius:8px; padding:8px 10px;}
-  .stat .label{font-size:0.75rem; color:var(--text-sub);}
+  @media (max-width:520px){ .stats{grid-template-columns:1fr;} }
+  .stat{background:var(--bg-light); border-radius:8px; padding:8px 10px; min-width:0;}
+  .stat .label{font-size:0.75rem; color:var(--text-sub); word-break:break-word; overflow-wrap:anywhere;}
   .stat .value{font-size:1.2rem; font-weight:700; color:var(--primary);}
   .stat.ea1 .value{color:var(--c-ea1);}
   .stat.ea2 .value{color:var(--c-ea2);}
@@ -164,7 +165,7 @@
     <div class="card span2">
       <h2>予想される室内濃度分布（対数正規分布）</h2>
       <div class="chart-wrap">
-        <svg id="chart" viewBox="0 0 800 380" preserveAspectRatio="xMidYMid meet" aria-label="濃度分布"></svg>
+        <svg id="chart" viewBox="0 0 800 520" preserveAspectRatio="xMidYMid meet" aria-label="濃度分布"></svg>
       </div>
       <div class="legend">
         <span><span class="sw" style="background:var(--c-ea2)"></span>第二評価値 EA2</span>
@@ -263,8 +264,8 @@ function niceTicks(xmin, xmax, target=6){
 
 function drawChart(s, E, xs){
   const svg = $('chart');
-  const W=800, H=380;
-  const margin = {l:52, r:18, t:18, b:46};
+  const W=800, H=520;
+  const margin = {l:64, r:24, t:24, b:60};
   const plotW = W-margin.l-margin.r;
   const plotH = H-margin.t-margin.b;
 
@@ -323,13 +324,13 @@ function drawChart(s, E, xs){
   // x軸 目盛り
   ticks.forEach(v=>{
     const px = xToPx(v);
-    svgHtml += `<line x1="${px}" y1="${margin.t+plotH}" x2="${px}" y2="${margin.t+plotH+4}" stroke="#888"/>`;
-    svgHtml += `<text x="${px}" y="${margin.t+plotH+18}" font-size="11" fill="#5d6d7e" text-anchor="middle">${tickFmt(v)}</text>`;
+    svgHtml += `<line x1="${px}" y1="${margin.t+plotH}" x2="${px}" y2="${margin.t+plotH+5}" stroke="#888"/>`;
+    svgHtml += `<text x="${px}" y="${margin.t+plotH+24}" font-size="16" fill="#5d6d7e" text-anchor="middle">${tickFmt(v)}</text>`;
     // 補助縦線（薄）
     svgHtml += `<line x1="${px}" y1="${margin.t}" x2="${px}" y2="${margin.t+plotH}" stroke="#eee" stroke-width="1"/>`;
   });
-  svgHtml += `<text x="${margin.l+plotW/2}" y="${H-8}" font-size="12" fill="#2c3e50" text-anchor="middle" font-weight="700">濃度 (ppm)</text>`;
-  svgHtml += `<text x="16" y="${margin.t+plotH/2}" font-size="11" fill="#5d6d7e" transform="rotate(-90,16,${margin.t+plotH/2})" text-anchor="middle">確率密度</text>`;
+  svgHtml += `<text x="${margin.l+plotW/2}" y="${H-10}" font-size="18" fill="#2c3e50" text-anchor="middle" font-weight="700">濃度 (ppm)</text>`;
+  svgHtml += `<text x="22" y="${margin.t+plotH/2}" font-size="16" fill="#5d6d7e" transform="rotate(-90,22,${margin.t+plotH/2})" text-anchor="middle">確率密度</text>`;
 
   // 上側5%塗り
   if(dFill){
@@ -343,9 +344,9 @@ function drawChart(s, E, xs){
     if(!(x>=xMin && x<=xMax) || !isFinite(x)) return '';
     const px = xToPx(x);
     const dashAttr = dash?` stroke-dasharray="${dash}"`:'';
-    let h = `<line x1="${px}" y1="${margin.t}" x2="${px}" y2="${margin.t+plotH}" stroke="${color}" stroke-width="2"${dashAttr}/>`;
-    h += `<text x="${px+3}" y="${margin.t+12}" font-size="11" fill="${color}" font-weight="700">${label}</text>`;
-    h += `<text x="${px+3}" y="${margin.t+25}" font-size="10" fill="${color}">${fmt(x)} ppm</text>`;
+    let h = `<line x1="${px}" y1="${margin.t}" x2="${px}" y2="${margin.t+plotH}" stroke="${color}" stroke-width="2.5"${dashAttr}/>`;
+    h += `<text x="${px+4}" y="${margin.t+18}" font-size="17" fill="${color}" font-weight="700">${label}</text>`;
+    h += `<text x="${px+4}" y="${margin.t+36}" font-size="14" fill="${color}">${fmt(x)} ppm</text>`;
     return h;
   }
   svgHtml += vLine(s.EA2, 'var(--c-ea2)', 'EA2','4,3');
@@ -356,14 +357,14 @@ function drawChart(s, E, xs){
   xs.forEach((x,i)=>{
     if(x<xMin || x>xMax) return;
     const px = xToPx(x);
-    const py = margin.t+plotH-6;
-    svgHtml += `<circle cx="${px}" cy="${py}" r="5" fill="var(--c-points)" stroke="#fff" stroke-width="1.5"/>`;
-    svgHtml += `<text x="${px}" y="${py-8}" font-size="10" fill="var(--c-points)" text-anchor="middle">#${i+1}</text>`;
+    const py = margin.t+plotH-8;
+    svgHtml += `<circle cx="${px}" cy="${py}" r="7" fill="var(--c-points)" stroke="#fff" stroke-width="2"/>`;
+    svgHtml += `<text x="${px}" y="${py-11}" font-size="13" fill="var(--c-points)" font-weight="700" text-anchor="middle">#${i+1}</text>`;
   });
 
   // EA1超過の注記（範囲外で見えない場合）
   if(s.EA1 > xMax){
-    svgHtml += `<text x="${margin.l+plotW-4}" y="${margin.t+12}" font-size="11" fill="var(--c-ea1)" font-weight="700" text-anchor="end">EA1=${fmt(s.EA1)} ppm（範囲外 →）</text>`;
+    svgHtml += `<text x="${margin.l+plotW-4}" y="${margin.t+18}" font-size="15" fill="var(--c-ea1)" font-weight="700" text-anchor="end">EA1=${fmt(s.EA1)} ppm（範囲外 →）</text>`;
   }
 
   svg.innerHTML = svgHtml;
