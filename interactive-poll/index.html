@@ -646,6 +646,9 @@ function normalizeOptions(s){
   if (!Array.isArray(s.options)) s.options = [];
 }
 
+let lastActiveCardKey = '';
+let lastActiveCardCount = -1;
+
 function renderActiveCard(session, responses){
   const card = document.getElementById('activeCard');
   const hero = document.getElementById('heroSection');
@@ -657,6 +660,8 @@ function renderActiveCard(session, responses){
     if (hero) hero.style.display = '';
     if (deckCtrl) deckCtrl.style.display = '';
     stopCountdown();
+    lastActiveCardKey = '';
+    lastActiveCardCount = -1;
     return;
   }
   card.style.display = 'block';
@@ -670,6 +675,23 @@ function renderActiveCard(session, responses){
   const ms = remainMs(session.deadline);
   const expired = ms === 0;
   const isRevealed = phase === 'revealed';
+
+  // 再描画キー: フェーズ/問題/締切/モード/タイマー切れ状態 + 結果発表中の回答数
+  const renderKey = JSON.stringify([
+    phase, session.question, session.deadline, session.mode, expired,
+    isRevealed ? total : 0
+  ]);
+  if (renderKey === lastActiveCardKey) {
+    // 大きな変更なし: 回答数だけ更新して終了 (ワードクラウド等の再描画を防ぐ)
+    if (total !== lastActiveCardCount) {
+      const countEl = document.getElementById('activeCount');
+      if (countEl) countEl.textContent = `回答 ${total}人`;
+      lastActiveCardCount = total;
+    }
+    return;
+  }
+  lastActiveCardKey = renderKey;
+  lastActiveCardCount = total;
 
   const cid = sessionStorage.getItem('currentQuestionId');
   const idx = currentDeckQuestions.findIndex(q => q.id === cid);
@@ -699,7 +721,7 @@ function renderActiveCard(session, responses){
       <span class="mode-badge mb-${session.mode}">${session.mode === 'wordcloud' ? '☁️ ワードクラウド' : '🏆 ランキング'}</span>
       <span style="color:var(--text);font-weight:600">現在の問題${progress ? ' · ' + progress : ''}</span>
       <span class="spacer"></span>
-      <span style="font-size:13px;color:rgba(64,64,64,0.6)">回答 ${total}人</span>
+      <span id="activeCount" style="font-size:13px;color:rgba(64,64,64,0.6)">回答 ${total}人</span>
     </div>
     <p class="big-q">${escHtml(session.question)}</p>
     ${optsWarn}
@@ -1102,6 +1124,12 @@ function initPendingWordClouds(){
     canvas.width = w;
     canvas.height = h;
     const maxCount = items[0][1] || 1;
+    // 単語ごとに決定的な色を選ぶ(再描画してもチカチカしないように)
+    function hashWord(w){
+      let h = 0;
+      for (let i = 0; i < w.length; i++) h = ((h * 31) + w.charCodeAt(i)) | 0;
+      return Math.abs(h);
+    }
     try {
       WordCloud(canvas, {
         list: items,
@@ -1109,13 +1137,13 @@ function initPendingWordClouds(){
         weightFactor: (s) => Math.pow(s / maxCount, 0.7) * (w / 9) + 14,
         fontFamily: '"Geist", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif',
         fontWeight: '700',
-        color: () => palette[Math.floor(Math.random() * palette.length)],
-        rotateRatio: 0.4,
+        color: (word) => palette[hashWord(word) % palette.length],
+        rotateRatio: 0.35,
         rotationSteps: 2,
-        minRotation: -Math.PI/6,
-        maxRotation: Math.PI/6,
+        minRotation: -Math.PI/8,
+        maxRotation: Math.PI/8,
         backgroundColor: 'transparent',
-        shuffle: true,
+        shuffle: false,
         shrinkToFit: true,
       });
     } catch(e) { console.warn('WordCloud render failed', e); }
