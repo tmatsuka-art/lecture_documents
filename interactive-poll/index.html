@@ -1239,10 +1239,19 @@ function initPendingWordClouds(){
     // フォールバック: イベントが発火しないケース用に最大3秒で必ず表示
     setTimeout(freezeToImage, 3000);
     try {
+      // shape function: canvas のアスペクト比に合わせた長方形に単語を配置
+      const aspect = w / h;
+      const rectShape = function(theta) {
+        const cosT = Math.abs(Math.cos(theta));
+        const sinT = Math.abs(Math.sin(theta));
+        if (cosT < 0.001) return 1;
+        if (sinT < 0.001) return aspect;
+        return Math.min(aspect / cosT, 1 / sinT);
+      };
       WordCloud(canvas, {
         list: items,
-        gridSize: Math.max(8, Math.floor(Math.min(w, h) / 60)),
-        weightFactor: (s) => Math.pow(s / maxCount, 0.6) * (Math.min(w, h) / 5) + 16,
+        gridSize: Math.max(8, Math.floor(h / 50)),
+        weightFactor: (s) => Math.pow(s / maxCount, 0.5) * (h / 3.5) + 18,
         fontFamily: '"Geist", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif',
         fontWeight: '700',
         color: (word) => palette[hashWord(word) % palette.length],
@@ -1253,7 +1262,8 @@ function initPendingWordClouds(){
         backgroundColor: 'transparent',
         shuffle: false,
         shrinkToFit: true,
-        shape: 'square',
+        shape: rectShape,
+        ellipticity: 1,
       });
     } catch(e) {
       console.warn('WordCloud render failed', e);
