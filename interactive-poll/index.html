@@ -167,6 +167,12 @@ textarea { resize: vertical; }
 /* ── Bars / WordCloud / Rank ── */
 .bar-row { display: flex; align-items: center; margin: 10px 0; gap: 12px; }
 .bar-label { min-width: 140px; font-weight: 600; word-break: break-all; color: var(--text); }
+/* プロジェクター表示用に結果バー類を拡大 */
+.active-question .bar-row { margin: 14px 0; gap: 16px; }
+.active-question .bar-label { min-width: 160px; font-size: clamp(1.1rem, 2.2vw, 1.6rem); }
+.active-question .bar { height: clamp(44px, 6vw, 56px); font-size: clamp(1.05rem, 2vw, 1.5rem); padding: 0 18px; border-radius: 12px; }
+.active-question .wordcloud { padding: 32px; gap: 16px; min-height: 240px; }
+.active-question .word { padding: 10px 22px; }
 .bar {
   background: linear-gradient(90deg, var(--primary), var(--primary-mid));
   height: 42px; border-radius: 10px;
@@ -675,10 +681,10 @@ function renderActiveCard(session, responses){
 
   const isRanking = session.mode === 'ranking';
   const optsHtml = (isRanking && !isRevealed && session.options.length)
-    ? `<div style="background:rgba(184,210,211,0.15);border:1.5px solid rgba(94,234,212,0.4);border-radius:12px;padding:14px 18px;margin:12px 0">
-         <div class="muted" style="margin-bottom:6px;font-weight:600">📋 選択肢 (学生はこれを順位付け):</div>
-         <ol style="margin-left:24px;line-height:1.8;color:var(--text);font-weight:500">
-           ${session.options.map(o => `<li>${escHtml(o)}</li>`).join('')}
+    ? `<div style="background:rgba(184,210,211,0.15);border:1.5px solid rgba(94,234,212,0.4);border-radius:14px;padding:20px 28px;margin:16px 0">
+         <div class="muted" style="margin-bottom:12px;font-weight:600;font-size:15px">📋 選択肢 (学生はこれを順位付け):</div>
+         <ol style="margin-left:36px;line-height:1.7;color:var(--text);font-weight:600;font-size:clamp(1.3rem, 2.6vw, 1.9rem)">
+           ${session.options.map(o => `<li style="margin-bottom:6px">${escHtml(o)}</li>`).join('')}
          </ol>
        </div>`
     : '';
